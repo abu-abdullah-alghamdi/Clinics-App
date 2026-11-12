@@ -113,6 +113,28 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     return '+966 ${n.substring(0, 2)} ${n.substring(2, 5)} ${n.substring(5)}';
   }
 
+  /// خانة رقم واحدة من خانات الرمز
+  Widget _box(int i, String code) {
+    final filled = i < code.length;
+    final active = !_ok && i == code.length;
+    final borderColor = _error
+        ? AppColors.red
+        : active
+            ? AppColors.ink
+            : Colors.transparent;
+    return AnimatedContainer(
+      duration: motion(context, 200),
+      height: 86 * uiScale(context),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _ok ? AppColors.accent : AppColors.white,
+        borderRadius: BorderRadius.circular(26),
+        border: Border.all(color: borderColor, width: 2),
+      ),
+      child: Text(filled ? fmtNum(code[i]) : '', style: ts(34, weight: FontWeight.w500, color: _ok ? AppColors.onAccent : null)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final code = _code;
@@ -185,31 +207,13 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                           Directionality(
                             textDirection: TextDirection.ltr,
                             child: Row(
-                              children: List.generate(4, (i) {
-                                final filled = i < code.length;
-                                final active = !_ok && i == code.length;
-                                final borderColor = _error
-                                    ? AppColors.red
-                                    : active
-                                        ? AppColors.ink
-                                        : Colors.transparent;
-                                return Expanded(
-                                  child: Padding(
-                                    padding: EdgeInsets.only(right: i < 3 ? 12 : 0),
-                                    child: AnimatedContainer(
-                                      duration: motion(context, 200),
-                                      height: 86 * uiScale(context),
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        color: _ok ? AppColors.accent : AppColors.white,
-                                        borderRadius: BorderRadius.circular(26),
-                                        border: Border.all(color: borderColor, width: 2),
-                                      ),
-                                      child: Text(filled ? fmtNum(code[i]) : '', style: ts(34, weight: FontWeight.w500, color: _ok ? AppColors.onAccent : null)),
-                                    ),
-                                  ),
-                                );
-                              }),
+                              // 4 خانات بنفس العرض بالضبط، وبينها مسافة 12
+                              children: [
+                                for (var i = 0; i < 4; i++) ...[
+                                  if (i > 0) const SizedBox(width: 12),
+                                  Expanded(child: _box(i, code)),
+                                ],
+                              ],
                             ),
                           ),
                           // حقل مخفي يستقبل الأرقام (ويدعم تعبئة الرمز التلقائية من الرسائل)
