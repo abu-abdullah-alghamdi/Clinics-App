@@ -1,8 +1,8 @@
 # بناء تطبيق مستقل لكل عيادة (iOS وAndroid) من ملف إعداداتها: clinics/<id>/config.json
 #
-# - عيادتي (demo) وعيادة نور (noor) تنبني بالتوازي، كل تطبيق في جهاز مستقل،
+# - Clinics App (demo) وعيادة نور (noor) تنبني بالتوازي، كل تطبيق في جهاز مستقل،
 #   وكل تطبيق ينفحص: المعرّف، الاسم تحت الأيقونة، الأيقونة، لون شاشة البداية، وما فيه أصول عيادة ثانية.
-# - وفي جهاز واحد ورا بعض: عيادتي ← نور ← عيادتي، والحماية من التداخل ونسخة الإنتاج بدون ملف.
+# - وفي جهاز واحد ورا بعض: Clinics App ← نور ← Clinics App، والحماية من التداخل ونسخة الإنتاج بدون ملف.
 # البناء بدون توقيع (التوقيع على الماك فقط، ومفاتيحه ما ترتفع لـ GitHub).
 name: بناء التطبيق
 
@@ -97,7 +97,7 @@ jobs:
           channel: stable
           cache: true
       - run: python3 -m pip install --quiet pillow
-      - name: عيادتي ← نور ← عيادتي
+      - name: Clinics App ← نور ← Clinics App
         run: |
           for c in demo noor demo; do
             ok=0
@@ -126,7 +126,7 @@ jobs:
           channel: stable
           cache: true
       - run: python3 -m pip install --quiet pillow || python3 -m pip install --quiet --break-system-packages pillow
-      - name: عيادتي ← نور ← عيادتي
+      - name: Clinics App ← نور ← Clinics App
         run: |
           for c in demo noor demo; do
             python3 tool/clinic.py build $c ios --no-codesign > build_$c.log 2>&1 || { tail -40 build_$c.log; exit 1; }
@@ -134,12 +134,12 @@ jobs:
           done
       - name: ملف عيادة غير العيادة المجهزة لازم يرفض
         run: |
-          # Xcode مجهز لعيادتي (آخر بناء)، والملف لعيادة نور
+          # Xcode مجهز لـ Clinics App (آخر بناء)، والملف لعيادة نور
           if flutter build ios --release --no-codesign --dart-define-from-file=clinics/noor/config.json > mix.log 2>&1; then
             echo "::error title=الحماية::انبنى تطبيق بإعدادات عيادتين مختلفتين"; exit 1
           fi
           grep -q 'Xcode مجهز لعيادة' mix.log || { tail -30 mix.log; echo "::error title=الحماية::فشل لسبب ثاني"; exit 1; }
-          echo "::notice title=الحماية (آيفون)::ملف عيادة نور مع إعدادات عيادتي انرفض"
+          echo "::notice title=الحماية (آيفون)::ملف عيادة نور مع إعدادات Clinics App انرفض"
       - name: نسخة الإنتاج بدون ملف عيادة لازم ترفض
         run: |
           python3 tool/clinic.py use demo

@@ -104,7 +104,7 @@ def xcconfig(data: dict, note: str) -> str:
 
 
 def default_xcconfig_text() -> str:
-    return xcconfig(load(DEFAULT_ID), "العيادة الافتراضية لبناء آيفون: عيادتي (demo)")
+    return xcconfig(load(DEFAULT_ID), "العيادة الافتراضية لبناء آيفون: Clinics App (demo)")
 
 
 def use(cid: str) -> None:

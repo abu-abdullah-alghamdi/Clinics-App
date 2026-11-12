@@ -19,7 +19,7 @@ val dartDefines: Map<String, String> =
         .associate { it.substringBefore("=") to it.substringAfter("=") }
 val clinicFromFile: String? = dartDefines["CLINIC_ID"]
 
-// نسخة المتجر (App Bundle) لازم تنبني بملف عيادة صريح، والتشغيل بدون ملف = عيادتي (demo) وقت التطوير
+// نسخة المتجر (App Bundle) لازم تنبني بملف عيادة صريح، والتشغيل بدون ملف = Clinics App (demo) وقت التطوير
 if (clinicFromFile == null && gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }) {
     throw GradleException("نسخة الإنتاج لازم تنبني بملف العيادة: python3 tool/clinic.py build <id> appbundle")
 }

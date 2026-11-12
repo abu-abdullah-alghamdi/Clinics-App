@@ -1,12 +1,12 @@
 // هوية العيادة ونصوصها تجي من ملف إعداداتها، بدون تعديل الكود.
 //
 // يشتغل بطريقتين:
-// 1. مع باقي الاختبارات (بملف demo أو بدون): يتأكد إن عيادتي تطلع بنفس النصوص بالضبط قبل الفصل.
+// 1. مع باقي الاختبارات (بملف demo أو بدون): يتأكد إن Clinics App تطلع بنفس النصوص بالضبط قبل الفصل.
 // 2. بملف عيادة ثانية للاختبار (test/fixtures/clinic_test.json) — في GitHub:
 //      flutter test test/clinic_identity_test.dart \
 //        --dart-define-from-file=test/fixtures/clinic_test.json \
 //        --dart-define=CLINIC_FIXTURE=test/fixtures/clinic_test.json
-//    ويتأكد إن كل بيانات الهوية تغيّرت في التطبيق حسب الملف، وما بقى أي أثر لعيادتي.
+//    ويتأكد إن كل بيانات الهوية تغيّرت في التطبيق حسب الملف، وما بقى أي أثر لـ Clinics App.
 library;
 
 import 'dart:convert';
@@ -24,7 +24,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// ملف عيادة الاختبار (فاضي = الاختبار يشتغل على عيادتي)
+/// ملف عيادة الاختبار (فاضي = الاختبار يشتغل على Clinics App)
 const _fixture = String.fromEnvironment('CLINIC_FIXTURE');
 
 /// خطوط التطبيق الحقيقية (عشان الصفحة تنرسم بمقاسها الصحيح)
@@ -49,16 +49,16 @@ void main() {
   final c = ClinicConfig.current;
 
   if (_fixture.isEmpty) {
-    // ─── عيادتي: نفس النصوص بالضبط اللي كانت مكتوبة في الكود
-    test('عيادتي: النصوص والروابط نفس ما كانت قبل الفصل', () {
+    // ─── Clinics App: نفس النصوص بالضبط اللي كانت مكتوبة في الكود
+    test('Clinics App: النصوص والروابط نفس ما كانت قبل الفصل', () {
       expect(c, ClinicConfig.demo);
       final d = doctorById('d1');
-      expect(shareDoctorText(d), '${d.name} · ${d.role}\nاحجز موعدك من تطبيق عيادتي\nhttps://apps.apple.com/');
+      expect(shareDoctorText(d), '${d.name} · ${d.role}\nاحجز موعدك من تطبيق Clinics App\nhttps://apps.apple.com/');
       final s = serviceById('s1');
       final offer = s.onOffer ? ' (خصم ${fmtNum(s.discount)}%)' : '';
-      expect(shareServiceText(s), '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاحجزها من تطبيق عيادتي\nhttps://apps.apple.com/');
-      expect(calendarEventNote, 'موعد في عيادتي');
-      expect(forceUpdateMessage, 'هذي النسخة من عيادتي ما عاد تشتغل، حدّث التطبيق عشان تكمل حجوزاتك');
+      expect(shareServiceText(s), '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاحجزها من تطبيق Clinics App\nhttps://apps.apple.com/');
+      expect(calendarEventNote, 'موعد في Clinics App');
+      expect(forceUpdateMessage, 'هذي النسخة من Clinics App ما عاد تشتغل، حدّث التطبيق عشان تكمل حجوزاتك');
       expect(clinicCallUri.toString(), 'tel:+966000000000');
       expect(clinicWhatsappUri.toString(), 'https://wa.me/966000000000');
       expect(c.monogram, 'ع');
@@ -67,7 +67,7 @@ void main() {
     // ─── عيادة ثانية من ملف إعداداتها
     final file = ClinicConfig.fromJson(json.decode(File(_fixture).readAsStringSync()) as Map<String, dynamic>);
 
-    test('الإعدادات جت من ملف عيادة الاختبار، مو من عيادتي', () {
+    test('الإعدادات جت من ملف عيادة الاختبار، مو من Clinics App', () {
       expect(ClinicConfig.fromFile, isTrue);
       expect(c, file);
       expect(c, isNot(ClinicConfig.demo));

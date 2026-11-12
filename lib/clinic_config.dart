@@ -6,7 +6,7 @@
 ///
 /// القيم تنقرأ وقت البناء (ثابتة داخل التطبيق)، فنسخة كل عيادة ما تحتوي إلا ملفها.
 ///
-/// - بدون ملف: التطبيق يشتغل بإعدادات demo (عيادتي) عشان التشغيل وقت التطوير يبقى زي ما هو.
+/// - بدون ملف: التطبيق يشتغل بإعدادات demo (Clinics App) عشان التشغيل وقت التطوير يبقى زي ما هو.
 /// - مع ملف: لازم يحتوي كل المفاتيح وبصيغة صحيحة. لو نقص مفتاح يوقف التشغيل برسالة واضحة،
 ///   بدل ما ياخذ القيمة الناقصة من demo وتطلع عيادة بهوية عيادة ثانية.
 ///
@@ -83,7 +83,7 @@ class ClinicConfig {
   /// أقل تباين مسموح بين اللون المميز ولون النص فوقه (معيار WCAG للنص العادي)
   static const minContrast = 4.5;
 
-  /// لون عيادتي المميز (الليموني) ولون النص فوقه
+  /// لون Clinics App المميز (الليموني) ولون النص فوقه
   static const demoAccent = 0xFFE3FF3A;
   static const demoOnAccent = 0xFF000000;
 
@@ -93,12 +93,12 @@ class ClinicConfig {
   /// رابط محادثة واتساب
   Uri get whatsappUri => Uri.parse('https://wa.me/${whatsapp.replaceAll('+', '')}');
 
-  /// عيادتي (demo): الإعدادات وقت التطوير بدون ملف. لازم تطابق clinics/demo/config.json
+  /// Clinics App (demo): الإعدادات وقت التطوير بدون ملف. لازم تطابق clinics/demo/config.json
   /// (فيه اختبار يتأكد من هذا)
   static const demo = ClinicConfig(
     id: 'demo',
-    appName: 'عيادتي',
-    nameEn: 'Eyadati',
+    appName: 'Clinics App',
+    nameEn: 'Clinics App',
     phone: '+966000000000',
     whatsapp: '+966000000000',
     shareLink: 'https://apps.apple.com/',

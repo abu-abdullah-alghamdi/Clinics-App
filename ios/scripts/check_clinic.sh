@@ -30,11 +30,11 @@ if [ -n "$FILE_ID" ]; then
   [ "$FILE_BUNDLE" = "$CLINIC_IOS_BUNDLE_ID" ] && [ "$FILE_NAME" = "$CLINIC_DISPLAY_NAME" ] ||
     fail "ملف العيادة \"$FILE_ID\" تغيّر بعد تجهيز Xcode. شغّل: python3 tool/clinic.py use $FILE_ID"
 else
-  # بدون ملف: مسموح وقت التطوير بس، وبإعدادات عيادتي (demo)
+  # بدون ملف: مسموح وقت التطوير بس، وبإعدادات Clinics App (demo)
   [ "$ACTION" != "install" ] ||
     fail "نسخة الإنتاج لازم تنبني بملف العيادة: python3 tool/clinic.py build <id> ipa"
   [ "$CLINIC_ID" = "demo" ] ||
-    fail "التشغيل بدون ملف ياخذ إعدادات عيادتي، بس Xcode مجهز لعيادة \"$CLINIC_ID\". حدد ملفها (--dart-define-from-file=clinics/$CLINIC_ID/config.json) أو شغّل: python3 tool/clinic.py use demo"
+    fail "التشغيل بدون ملف ياخذ إعدادات Clinics App، بس Xcode مجهز لعيادة \"$CLINIC_ID\". حدد ملفها (--dart-define-from-file=clinics/$CLINIC_ID/config.json) أو شغّل: python3 tool/clinic.py use demo"
 fi
 
 [ "$PRODUCT_BUNDLE_IDENTIFIER" = "$CLINIC_IOS_BUNDLE_ID" ] ||

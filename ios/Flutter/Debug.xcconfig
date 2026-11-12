@@ -1,4 +1,4 @@
-// إعدادات العيادة: الافتراضية عيادتي (demo)، وعيادة ثانية تتحدد بالأمر:
+// إعدادات العيادة: الافتراضية Clinics App (demo)، وعيادة ثانية تتحدد بالأمر:
 //   python3 tool/clinic.py use <id>   (يكتب ClinicSelected.xcconfig، ما يرتفع لـ GitHub)
 #include "ClinicDefault.xcconfig"
 #include? "ClinicSelected.xcconfig"

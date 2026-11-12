@@ -61,7 +61,7 @@ jobs:
             --dart-define-from-file=test/fixtures/clinic_test.json \
             --dart-define=CLINIC_FIXTURE=test/fixtures/clinic_test.json
 
-      # عيادة نور: هويتها وألوانها (الأزرق مع الأبيض) ووضوح النصوص، وما فيها أثر لعيادتي
+      # عيادة نور: هويتها وألوانها (الأزرق مع الأبيض) ووضوح النصوص، وما فيها أثر لـ Clinics App
       - name: هوية وألوان عيادة نور
         run: |
           flutter test test/clinic_identity_test.dart test/clinic_colors_test.dart \

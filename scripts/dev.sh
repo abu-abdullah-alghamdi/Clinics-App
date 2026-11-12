@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================
-#  عيادتي — تشغيل التطبيق وتحديثه على Xcode
+#  Clinics App — تشغيل التطبيق وتحديثه على Xcode
 #
 #  ./scripts/dev.sh run     تجهيز المشروع وفتحه في Xcode وتشغيله
 #  ./scripts/dev.sh update  سحب آخر نسخة من GitHub ثم إعادة البناء والتشغيل
@@ -14,7 +14,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
-APP_NAME="عيادتي"
+APP_NAME="Clinics App"
 WATCH_EVERY="${WATCH_EVERY:-30}"   # كل كم ثانية يتحقق من وجود تحديث
 CLINIC="${CLINIC:-demo}"
 CLINIC_FILE="clinics/$CLINIC/config.json"

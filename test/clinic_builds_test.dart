@@ -1,7 +1,7 @@
 // بناء تطبيق مستقل لكل عيادة: المعرّفات والأسماء والأيقونات وشاشة البداية
 //
 // يتأكد إن:
-// - كل عيادة معرّفاتها واسمها مختلفة عن غيرها، وعيادتي بنفس معرّفات التطبيق المثبت.
+// - كل عيادة معرّفاتها واسمها مختلفة عن غيرها، و Clinics App بنفس معرّفات التطبيق المثبت.
 // - كل عيادة أصولها (الأيقونات وشاشة البداية) في مجلدها، وما فيه أيقونة مشتركة ممكن تتسرب لعيادة ثانية.
 // - مشروع آيفون وأندرويد ياخذون كل هذا من ملف العيادة، ولا قيمة مكتوبة بيد.
 //
@@ -27,11 +27,11 @@ ClinicConfig _clinic(String id) => ClinicConfig.fromJson(_json('clinics/$id/conf
 const _androidDensities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
 
 void main() {
-  test('عيادتي بنفس معرّفات واسم التطبيق المثبت', () {
+  test('Clinics App بنفس معرّفات واسم التطبيق المثبت', () {
     final demo = _clinic('demo');
     expect(demo.iosBundleId, 'com.clinicsapp.clinicsApp');
     expect(demo.androidAppId, 'com.clinicsapp.clinics_app');
-    expect(demo.appName, 'عيادتي');
+    expect(demo.appName, 'Clinics App');
   });
 
   test('كل عيادة معرّفاتها واسمها لها لحالها', () {
@@ -116,7 +116,7 @@ void main() {
       }
     });
 
-    test('الإعدادات الافتراضية = عيادتي، وكل عيادة ما ينبني إلا أصولها', () {
+    test('الإعدادات الافتراضية = Clinics App، وكل عيادة ما ينبني إلا أصولها', () {
       final demo = _clinic('demo');
       final x = _read('ios/Flutter/ClinicDefault.xcconfig');
       expect(x, contains('CLINIC_ID = demo\n'));

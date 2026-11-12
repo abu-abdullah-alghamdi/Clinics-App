@@ -17,7 +17,7 @@ abstract final class AppColors {
   static const faint = Color(0xFF636366);
 
   /// اللون المميز للعيادة ولون النص فوقه: من ملف إعداداتها (clinics/<id>/config.json)
-  /// وقت البناء، وبدون ملف = ألوان عيادتي (الليموني والأسود).
+  /// وقت البناء، وبدون ملف = ألوان Clinics App (الليموني والأسود).
   /// ثابتين (const) لأن كل عيادة لها نسخة تطبيق مستقلة.
   static const accent = Color(int.fromEnvironment('CLINIC_ACCENT', defaultValue: ClinicConfig.demoAccent));
   static const onAccent = Color(int.fromEnvironment('CLINIC_ON_ACCENT', defaultValue: ClinicConfig.demoOnAccent));

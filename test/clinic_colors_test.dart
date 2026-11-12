@@ -3,9 +3,9 @@
 // يفتح شاشات التطبيق الرئيسية ويفحص كل نص وأيقونة مرسومة:
 // - أي نص أو أيقونة فوق اللون المميز (أو بلونه) لازم يكون واضح (تباين 4.5 أو أكثر).
 // - اللون المميز يظهر فعلاً في الشاشات.
-// - مع ملف عيادة ثانية (test/fixtures/clinic_test.json، أزرق مع أبيض): ما يبقى ولا أثر لليموني عيادتي.
+// - مع ملف عيادة ثانية (test/fixtures/clinic_test.json، أزرق مع أبيض): ما يبقى ولا أثر لليموني Clinics App.
 //
-// في GitHub يشتغل مرتين: بملف عيادتي، وبملف عيادة الاختبار:
+// في GitHub يشتغل مرتين: بملف Clinics App، وبملف عيادة الاختبار:
 //   flutter test test/clinic_colors_test.dart \
 //     --dart-define-from-file=test/fixtures/clinic_test.json \
 //     --dart-define=CLINIC_FIXTURE=test/fixtures/clinic_test.json
@@ -32,7 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const _fixture = String.fromEnvironment('CLINIC_FIXTURE');
 
-/// ليموني عيادتي (بدون الشفافية)
+/// ليموني Clinics App (بدون الشفافية)
 const _demoRgb = ClinicConfig.demoAccent & 0x00FFFFFF;
 
 int _rgb(Color c) => c.toARGB32() & 0x00FFFFFF;
@@ -143,7 +143,7 @@ void main() {
     expect(AppColors.accent, ClinicConfig.current.accent);
     expect(AppColors.onAccent, ClinicConfig.current.onAccent);
     if (_fixture.isEmpty) {
-      // عيادتي: نفس الألوان بالضبط
+      // Clinics App: نفس الألوان بالضبط
       expect(AppColors.accent, const Color(0xFFE3FF3A));
       expect(AppColors.onAccent, const Color(0xFF000000));
       expect(AppColors.accentOnInk, AppColors.accent);
@@ -195,10 +195,10 @@ void main() {
       final scan = _scan(tester);
       // النصوص والأيقونات فوق اللون المميز (أو بلونه) واضحة
       expect(scan.problems, isEmpty, reason: scan.problems.join('\n'));
-      // ولا أثر لليموني عيادتي لما العيادة غيرها
+      // ولا أثر لليموني Clinics App لما العيادة غيرها
       if (_fixture.isNotEmpty) {
         final lime = [...scan.backgrounds, ...scan.foregrounds].where((c) => _rgb(c) == _demoRgb).toList();
-        expect(lime, isEmpty, reason: 'ليموني عيادتي باقي في "$name"');
+        expect(lime, isEmpty, reason: 'ليموني Clinics App باقي في "$name"');
       }
       accentSeen += scan.backgrounds.where((c) => c == AppColors.accent).length;
       debugPrint('$name: فحص ${scan.checked} نص/أيقونة بألوان الهوية');

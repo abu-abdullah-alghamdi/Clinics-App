@@ -1,4 +1,4 @@
-# عيادتي — تطبيق Flutter
+# Clinics App — تطبيق Flutter
 
 تطبيق حجز مواعيد عربي (RTL) بخط IBM Plex Sans Arabic: الدخول برقم الجوال ورمز من 4 أرقام، ثم المعلومات الشخصية، الرئيسية، الأطباء، الخدمات والسلة والدفع، مواعيدي، وحسابي، مع الشريط الزجاجي العائم وانتقالات iOS الأصلية (والسحب من الحافة للرجوع).
 
@@ -28,7 +28,7 @@ chmod +x scripts/dev.sh
 
 ## إعدادات العيادة
 
-هوية كل عيادة وإعداداتها في ملف مستقل: `clinics/<id>/config.json` (حالياً: `demo` = عيادتي، و`noor` = عيادة نور التجريبية لاختبار تعدد العيادات).
+هوية كل عيادة وإعداداتها في ملف مستقل: `clinics/<id>/config.json` (حالياً: `demo` = Clinics App، و`noor` = عيادة نور التجريبية لاختبار تعدد العيادات).
 الملف يوصل للتطبيق وقت البناء:
 
 ```bash
@@ -51,9 +51,9 @@ flutter run --release --dart-define-from-file=clinics/demo/config.json
 | `CLINIC_SHARE_LINK` | الرابط مع مشاركة طبيب أو خدمة (https) |
 | `CLINIC_STORE_URL` | صفحة التطبيق في المتجر لزر التحديث (https) |
 | `CLINIC_MONOGRAM` | حرف الشعار (حرف أو حرفين) مكان الشعار لين تتوفر صورته |
-| `CLINIC_ACCENT` | اللون المميز بصيغة `0xFFRRGGBB` (عيادتي: `0xFFE3FF3A`) |
-| `CLINIC_IOS_BUNDLE_ID` | معرّف التطبيق في آيفون (عيادتي: `com.clinicsapp.clinicsApp`) |
-| `CLINIC_ANDROID_APP_ID` | معرّف التطبيق في أندرويد (عيادتي: `com.clinicsapp.clinics_app`) |
+| `CLINIC_ACCENT` | اللون المميز بصيغة `0xFFRRGGBB` (Clinics App: `0xFFE3FF3A`) |
+| `CLINIC_IOS_BUNDLE_ID` | معرّف التطبيق في آيفون (Clinics App: `com.clinicsapp.clinicsApp`) |
+| `CLINIC_ANDROID_APP_ID` | معرّف التطبيق في أندرويد (Clinics App: `com.clinicsapp.clinics_app`) |
 | `CLINIC_SPLASH_COLOR` | لون خلفية شاشة البداية بصيغة `0xFFRRGGBB` |
 | `CLINIC_ON_ACCENT` | لون النص والأيقونات فوق اللون المميز (لازم يكون واضح فوقه: تباين 4.5 أو أكثر، وإلا يوقف التشغيل) |
 
@@ -85,7 +85,7 @@ python3 tool/clinic.py build <id> appbundle    # نسخة الإنتاج لأن�
 - آيفون يقرأها من `ios/Flutter/ClinicSelected.xcconfig` اللي يكتبه `use` (و`run`/`build` يسوونه لحالهم).
   وفيه فحص أول خطوة في البناء: لو العيادة المجهزة غير العيادة اللي في ملف الإعدادات يوقف البناء.
 - نسخ الإنتاج (Archive لآيفون وApp Bundle لأندرويد) ما تنبني إلا بملف عيادة صريح.
-- بدون ملف (وقت التطوير) = عيادتي (demo)، فالأمر المعتاد `flutter run --release` يشتغل زي ما هو.
+- بدون ملف (وقت التطوير) = Clinics App (demo)، فالأمر المعتاد `flutter run --release` يشتغل زي ما هو.
 - التوقيع المحلي (اختياري) في `ios/Flutter/Signing.xcconfig` (ما يرتفع لـ GitHub): `DEVELOPMENT_TEAM = XXXXXXXXXX`
 - لا تبني عيادتين بنفس الوقت من نفس المجلد على جهازك (Xcode يقرأ ملف إعدادات واحد). في GitHub كل بناء في جهاز مستقل.
 

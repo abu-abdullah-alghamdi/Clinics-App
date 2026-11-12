@@ -25,8 +25,8 @@ void main() {
   test('demo بنفس القيم اللي كانت في التطبيق قبل الفصل', () {
     const demo = ClinicConfig.demo;
     expect(demo.id, 'demo');
-    expect(demo.appName, 'عيادتي');
-    expect(demo.nameEn, 'Eyadati');
+    expect(demo.appName, 'Clinics App');
+    expect(demo.nameEn, 'Clinics App');
     expect(demo.phone, '+966000000000');
     expect(demo.whatsapp, '+966000000000');
     expect(demo.shareLink, 'https://apps.apple.com/');
@@ -109,7 +109,7 @@ void main() {
     Map<String, dynamic> colors(String accent, String on) => _read('clinics/demo/config.json')
       ..['CLINIC_ACCENT'] = accent
       ..['CLINIC_ON_ACCENT'] = on;
-    // الليموني مع الأسود (عيادتي) والأزرق مع الأبيض: واضحين
+    // الليموني مع الأسود (Clinics App) والأزرق مع الأبيض: واضحين
     expect(() => ClinicConfig.fromJson(colors('0xFFE3FF3A', '0xFF000000')), returnsNormally);
     expect(() => ClinicConfig.fromJson(colors('0xFF1F4FD8', '0xFFFFFFFF')), returnsNormally);
     // الليموني مع الأبيض والأزرق مع الأسود: ما يبانون، يرفضها
