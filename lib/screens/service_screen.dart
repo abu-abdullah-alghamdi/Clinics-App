@@ -10,10 +10,10 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'service_booking_screen.dart';
+import 'request_screen.dart';
 import 'services_tab.dart';
 
-/// صفحة الخدمة: الصورة، الاسم، التوفر، التقييم، النبذة، التقييمات، والكمية وزر الإضافة
+/// صفحة الخدمة: الصورة، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات، وزر الطلب
 class ServiceScreen extends StatefulWidget {
   const ServiceScreen({super.key, required this.service});
 
@@ -23,8 +23,7 @@ class ServiceScreen extends StatefulWidget {
   State<ServiceScreen> createState() => _ServiceScreenState();
 }
 
-class _ServiceScreenState extends State<ServiceScreen> with AddedFlash {
-  int _qty = 1;
+class _ServiceScreenState extends State<ServiceScreen> {
   bool _more = false;
 
   /// الباقة المختارة (null = جلسة وحدة)
@@ -77,11 +76,6 @@ class _ServiceScreenState extends State<ServiceScreen> with AddedFlash {
       );
 
   Service get sv => widget.service;
-
-  void _add() {
-    AppScope.read(context).addToCart(sv.id, qty: _qty);
-    flashAdded(const Duration(milliseconds: 1200), onReset: () => _qty = 1);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +162,7 @@ class _ServiceScreenState extends State<ServiceScreen> with AddedFlash {
                               Text(sv.oldPriceText, style: ts(16, color: AppColors.faint, decoration: TextDecoration.lineThrough)),
                               const SizedBox(width: 8),
                             ],
-                            Text(sv.priceText, style: ts(26, weight: FontWeight.w600)),
+                            Text(priceLabel(sv), style: ts(26, weight: FontWeight.w600)),
                           ],
                         ),
                       ],
@@ -180,7 +174,7 @@ class _ServiceScreenState extends State<ServiceScreen> with AddedFlash {
                       padding: const EdgeInsets.fromLTRB(10, 18, 10, 8),
                       child: Semantics(header: true, child: Text('اختر', style: ts(20, weight: FontWeight.w500))),
                     ),
-                    _option('جلسة وحدة', null, sv.finalPrice, 0, _pkg == null, () => setState(() => _pkg = null)),
+                    _option('جلسة وحدة', null, priceRange(sv).min, 0, _pkg == null, () => setState(() => _pkg = null)),
                     for (final p in packagesFor(sv.id))
                       _option(p.name, '${money(p.perSession)} للجلسة', p.price, p.savePercent, _pkg == p, () => setState(() => _pkg = p)),
                   ],
@@ -246,93 +240,12 @@ class _ServiceScreenState extends State<ServiceScreen> with AddedFlash {
                 ],
               )),
             ),
-            // شريط "عرض السلة" يطلع بعد الإضافة
-            if (s.cartCount > 0)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
-                child: CartBar(count: s.cartCount, subtotal: s.cartSubtotal),
-              ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // الأساسي: احجز الخدمة (الفرع ← الطبيب ← اليوم ← الوقت ← الدفع)
-                  if (_pkg != null)
-                    PillButton(
-                      label: 'احجز أول جلسة · ${money(_pkg!.price)}',
-                      icon: CupertinoIcons.calendar,
-                      height: 50,
-                      fontSize: 17,
-                      onTap: () => openServiceBooking(context, [OrderItem(sv, 1, package: _pkg)]),
-                    )
-                  else ...[
-                  PillButton(
-                    label: 'احجز الخدمة · ${money(sv.finalPrice * _qty)}',
-                    icon: CupertinoIcons.calendar,
-                    height: 50,
-                    fontSize: 17,
-                    onTap: () => openServiceBooking(context, [OrderItem(sv, _qty)]),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                children: [
-                  // الكمية
-                  Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(999)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        CircleButton(
-                          icon: CupertinoIcons.minus,
-                          size: 44,
-                          iconSize: 18,
-                          bg: AppColors.bg,
-                          enabled: _qty > 1,
-                          semanticLabel: 'إنقاص الكمية',
-                          onTap: () => setState(() => _qty--),
-                        ),
-                        SizedBox(
-                          width: 36,
-                          child: Semantics(
-                            label: 'الكمية ${fmtNum(_qty)}',
-                            liveRegion: true,
-                            child: ExcludeSemantics(
-                              child: Text(fmtNum(_qty), textAlign: TextAlign.center, style: ts(19, weight: FontWeight.w600)),
-                            ),
-                          ),
-                        ),
-                        CircleButton(
-                          icon: CupertinoIcons.plus,
-                          size: 44,
-                          iconSize: 18,
-                          bg: AppColors.bg,
-                          enabled: _qty < maxQty,
-                          semanticLabel: 'زيادة الكمية',
-                          onTap: () => setState(() => _qty++),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    // الثانوي: السلة (للي يبي يحجز أكثر من خدمة في نفس الزيارة)
-                    child: PillButton(
-                      label: added ? 'تمت الإضافة' : 'أضف إلى السلة',
-                      icon: added ? Icons.check_rounded : CupertinoIcons.bag_badge_plus,
-                      height: 50,
-                      fontSize: 16,
-                      padding: 16,
-                      bg: added ? AppColors.ink : AppColors.white,
-                      fg: added ? AppColors.white : AppColors.ink,
-                      onTap: added ? null : _add,
-                    ),
-                  ),
-                ],
-              ),
-                  ],
-                ],
+            BottomAction(
+              child: PillButton(
+                label: _pkg != null ? 'اطلب الباقة · ${money(_pkg!.price)}' : 'اطلب الخدمة',
+                height: 50,
+                fontSize: 17,
+                onTap: () => openRequest(context, service: sv, package: _pkg),
               ),
             ),
           ],

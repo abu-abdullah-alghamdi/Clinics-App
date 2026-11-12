@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../extras.dart';
 import '../main.dart';
+import '../native.dart';
 import '../pay_widgets.dart';
 import '../payments.dart';
 import '../services_data.dart';
@@ -12,41 +13,14 @@ import '../state.dart';
 import '../theme.dart';
 import '../states.dart';
 import '../widgets.dart';
-import 'done_screen.dart';
 import 'orders_screen.dart';
 
-/// الموعد اللي ينحجز بعد الدفع
-class Appointment {
-  const Appointment({required this.doctorId, required this.cat, required this.day, required this.time});
-
-  final String doctorId;
-  final String cat;
-  final int day;
-  final int time;
-}
-
-/// صفحة الدفع (شكلية لين يتم الربط مع بوابة دفع حقيقية — شوف lib/payments.dart)
+/// صفحة الدفع لطلب حددت العيادة موعده (أو وافقت على الباقة)
+/// (شكلية لين يتم الربط مع بوابة دفع حقيقية — شوف lib/payments.dart)
 class PaymentScreen extends StatefulWidget {
-  const PaymentScreen({
-    super.key,
-    required this.branchId,
-    required this.items,
-    this.appointment,
-    this.fromCart = false,
-    this.recipientName,
-    this.recipientPhone,
-  });
+  const PaymentScreen({super.key, required this.request});
 
-  /// الدفع لشخص ثاني: العيادة تتواصل معه وتحدد الموعد
-  final String? recipientName;
-  final String? recipientPhone;
-
-  final String branchId;
-  final List<OrderItem> items;
-
-  /// لو موجود: بعد الدفع ينحجز الموعد ويطلع في "مواعيدي"
-  final Appointment? appointment;
-  final bool fromCart;
+  final Booking request;
 
   @override
   State<PaymentScreen> createState() => _PaymentScreenState();
@@ -61,7 +35,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   /// مرحلة الدفع (null = النموذج ظاهر)
   PayPhase? _phase;
 
-  int get _subtotal => widget.items.fold(0, (a, b) => a + b.total);
+  Booking get _request => widget.request;
+  int get _subtotal => _request.price;
 
   /// كود الخصم المطبّق
   String? _coupon;
@@ -70,10 +45,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   int get _discount => _coupon == null ? 0 : (_subtotal * coupons[_coupon]! / 100).round();
 
-  /// طرق الدفع المتاحة: التقسيط من مبلغ معيّن، والدفع في العيادة مو للطلب لشخص ثاني
+  /// طرق الدفع المتاحة: التقسيط من مبلغ معيّن
   List<PayMethod> get _methods => [
         for (final m in PayMethod.values)
-          if (!(m.installments && _subtotal - _discount < installmentMin) && !(m == PayMethod.cash && widget.recipientName != null)) m,
+          if (!(m.installments && _subtotal - _discount < installmentMin)) m,
       ];
 
   void _applyCoupon() {
@@ -126,72 +101,44 @@ class _PaymentScreenState extends State<PaymentScreen> {
     FocusScope.of(context).unfocus();
     final s = AppScope.read(context);
     final amount = (_subtotal - _discount).toDouble();
-    final cash = _method == PayMethod.cash;
-    var reference = '';
 
-    // الدفع في العيادة ما يمر على البوابة
-    if (!cash) {
-      setState(() => _phase = PayPhase.processing);
-      final result = await PaymentGateway.instance.pay(
-        amount: amount,
-        method: _method,
-        card: _method.needsCard
-            ? CardDetails(number: _digits(_number), holder: _holder.text.trim(), expiry: _expiry.text, cvv: _digits(_cvv))
-            : null,
-      );
-      if (!mounted) return;
-      final pause = Duration(milliseconds: MediaQuery.disableAnimationsOf(context) ? 300 : 1000);
-      if (!result.ok) {
-        // الدائرة تحمر وتهتز، وبعدها صفحة الفشل
-        setState(() => _phase = PayPhase.failure);
-        await Future<void>.delayed(pause);
-        if (!mounted) return;
-        final action = await Navigator.of(context).push<PaymentFailAction>(
-          iosRoute(PaymentFailedScreen(amount: amount, methodText: _methodText)),
-        );
-        if (!mounted) return;
-        setState(() => _phase = null);
-        if (action == PaymentFailAction.retry) _pay();
-        return;
-      }
-      // الدائرة تقفل وتنرسم علامة الصح
-      setState(() => _phase = PayPhase.success);
+    setState(() => _phase = PayPhase.processing);
+    final result = await PaymentGateway.instance.pay(
+      amount: amount,
+      method: _method,
+      card: _method.needsCard
+          ? CardDetails(number: _digits(_number), holder: _holder.text.trim(), expiry: _expiry.text, cvv: _digits(_cvv))
+          : null,
+    );
+    if (!mounted) return;
+    final pause = Duration(milliseconds: MediaQuery.disableAnimationsOf(context) ? 300 : 1000);
+    if (!result.ok) {
+      // الدائرة تحمر وتهتز، وبعدها صفحة الفشل
+      setState(() => _phase = PayPhase.failure);
       await Future<void>.delayed(pause);
       if (!mounted) return;
-      reference = result.reference ?? '';
+      final action = await Navigator.of(context).push<PaymentFailAction>(
+        iosRoute(PaymentFailedScreen(amount: amount, methodText: _methodText)),
+      );
+      if (!mounted) return;
+      setState(() => _phase = null);
+      if (action == PaymentFailAction.retry) _pay();
+      return;
     }
+    // الدائرة تقفل وتنرسم علامة الصح
+    setState(() => _phase = PayPhase.success);
+    await Future<void>.delayed(pause);
+    if (!mounted) return;
 
-    final order = s.placeOrder(
-      items: widget.items,
-      branchId: widget.branchId,
+    final order = s.payRequest(
+      _request,
       method: _method,
-      reference: reference,
+      reference: result.reference ?? '',
       cardLast4: _last4,
-      clearCart: widget.fromCart,
       discount: _discount,
       coupon: _coupon,
-      recipientName: widget.recipientName,
-      recipientPhone: widget.recipientPhone,
     );
-    final a = widget.appointment;
-    final nav = Navigator.of(context);
-    if (a != null) {
-      // الباقة: أول جلسة هي هذا الموعد
-      if (widget.items.any((i) => i.package != null) && s.packages.isNotEmpty) s.usePackageSession(s.packages.first.id);
-      // الخدمة تصير موعد في "مواعيدي"
-      final b = s.addBooking(
-        doctorId: a.doctorId,
-        cat: a.cat,
-        day: a.day,
-        time: a.time,
-        branchId: widget.branchId,
-        serviceIds: [for (final i in widget.items) i.service.id],
-        orderNumber: order.number,
-      );
-      nav.pushAndRemoveUntil(iosRoute(DoneScreen(booking: b, order: order)), (r) => r.isFirst);
-    } else {
-      nav.pushAndRemoveUntil(iosRoute(OrderDoneScreen(order: order)), (r) => r.isFirst);
-    }
+    Navigator.of(context).pushAndRemoveUntil(iosRoute(OrderDoneScreen(order: order, request: _request)), (r) => r.isFirst);
   }
 
   Widget _label(String text) => Padding(
@@ -303,11 +250,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final total = (_subtotal - _discount).toDouble();
-    final payLabel = _method == PayMethod.cash
-        ? 'تأكيد الطلب · ${money(total)}'
-        : _method.installments
-            ? 'ادفع أول دفعة · ${money(total / installmentCount)}'
-            : 'ادفع ${money(total)}';
+    final payLabel = _method.installments ? 'ادفع أول دفعة · ${money(total / installmentCount)}' : 'ادفع ${money(total)}';
+    final at = _request.at;
 
     // وقت الدفع: الصفحة كلها تصير حركة التحقق، وما يقدر يرجع لين تخلص
     final phase = _phase;
@@ -360,17 +304,21 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(widget.recipientName != null ? CupertinoIcons.person_fill : CupertinoIcons.location_solid, size: 16, color: AppColors.faint),
+                            Icon(_request.forOther ? CupertinoIcons.person_fill : CupertinoIcons.location_solid, size: 16, color: AppColors.faint),
                             const SizedBox(width: 6),
                             Text(
-                              widget.recipientName != null ? 'لـ ${widget.recipientName}' : branchById(widget.branchId).name,
+                              _request.forOther ? 'لـ ${_request.recipientName}' : _request.branch.name,
                               style: ts(15, weight: FontWeight.w600),
                             ),
                           ],
                         ),
+                        if (at != null && !_request.isPackage)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('${fmtWhen(at)}${withDoctor(_request)}', style: ts(14, color: AppColors.body)),
+                          ),
                         const SizedBox(height: 8),
-                        for (final it in widget.items)
-                          amountRow(it.label, money(it.total)),
+                        amountRow(_request.title, money(_subtotal)),
                         const SizedBox(height: 8),
                       ],
                     ),
@@ -526,15 +474,21 @@ class _ExpiryFormatter extends TextInputFormatter {
   }
 }
 
-/// صفحة نجاح الطلب
+/// صفحة نجاح الدفع
 class OrderDoneScreen extends StatelessWidget {
-  const OrderDoneScreen({super.key, required this.order});
+  const OrderDoneScreen({super.key, required this.order, required this.request});
 
   final Order order;
+  final Booking request;
 
   @override
   Widget build(BuildContext context) {
-    final cash = order.method == PayMethod.cash;
+    final at = request.at;
+    final line = request.isPackage
+        ? 'تم تفعيل الباقة'
+        : at != null
+            ? '${fmtWhen(at)}${withDoctor(request)}'
+            : null;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -554,24 +508,12 @@ class OrderDoneScreen extends StatelessWidget {
                   const SizedBox(height: 20),
                   Semantics(
                     header: true,
-                    child: Text('تم الطلب بنجاح', textAlign: TextAlign.center, style: ts(32)),
+                    child: Text('تم الدفع بنجاح', textAlign: TextAlign.center, style: ts(32)),
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'رقم الطلب #${order.number}',
-                    textAlign: TextAlign.center,
-                    style: ts(16, color: AppColors.body),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    order.forOther
-                        ? 'العيادة بتتواصل مع ${order.recipientName} وتحدد الموعد معه'
-                        : cash
-                            ? 'الدفع عند زيارتك للفرع، ويتواصل معك الفرع لتحديد موعد الخدمة'
-                            : 'تم الدفع (تجريبي)، ويتواصل معك الفرع لتحديد موعد الخدمة',
-                    textAlign: TextAlign.center,
-                    style: ts(15, color: AppColors.body, height: 1.7),
-                  ),
+                  if (line != null) ...[
+                    const SizedBox(height: 8),
+                    Text(line, textAlign: TextAlign.center, style: ts(15, color: AppColors.body, height: 1.7)),
+                  ],
                   const SizedBox(height: 20),
                   OrderCard(order: order),
                 ],
@@ -583,22 +525,24 @@ class OrderDoneScreen extends StatelessWidget {
                 children: [
                   SizedBox(
                     width: double.infinity,
-                    child: PillButton(label: 'تم', height: 50, onTap: () => Navigator.of(context).pop()),
+                    child: PillButton(
+                      label: 'عرض مواعيدي',
+                      height: 50,
+                      onTap: () {
+                        AppScope.read(context).setTab(1);
+                        Navigator.of(context).pop();
+                      },
+                    ),
                   ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
                     child: PillButton(
-                      label: 'عرض طلباتي',
+                      label: 'تم',
                       height: 50,
                       fontSize: 16,
                       bg: AppColors.white,
-                      onTap: () {
-                        final nav = Navigator.of(context);
-                        AppScope.read(context).setTab(3);
-                        nav.pop();
-                        nav.push(iosRoute(const OrdersScreen()));
-                      },
+                      onTap: () => Navigator.of(context).pop(),
                     ),
                   ),
                 ],

@@ -70,6 +70,40 @@ const ratingWords = ['سيئة', 'مقبولة', 'جيدة', 'جيدة جداً'
 const ratingGood = ['التعامل', 'الالتزام بالوقت', 'النظافة', 'الشرح والتوضيح', 'النتيجة'];
 const ratingBad = ['الانتظار', 'التعامل', 'النظافة', 'السعر', 'النتيجة'];
 
-// ───────── قائمة الانتظار
+// ───────── الرتوش بعد جلسات الليزر
 
-const waitRanges = ['أي وقت', '4 - 6 م', '6 - 8 م'];
+/// كل جلسة ليزر لها رتوش وحدة خلال هذي المدة من تاريخ الجلسة
+const touchUpDays = 14;
+
+/// جلسة ليزر (مو كشف) تجي معها رتوش
+bool hasTouchUp(Service sv) => sv.cat == 'laser' && !sv.kashf;
+
+// ───────── تفاصيل الطلب
+
+extension RequestDetails on Booking {
+  ServicePackage? get package => packageId == null ? null : packageById(packageId!);
+
+  /// اسم الطلب: الخدمة، أو الباقة، أو رتوش
+  String get title => package != null
+      ? '${service.name} · ${package!.name}'
+      : touchUpOf != null
+          ? 'رتوش ${service.name}'
+          : service.name;
+
+  /// المبلغ المطلوب (0 لجلسة الباقة والرتوش)
+  int get price {
+    if (free) return 0;
+    final p = package;
+    if (p != null) return p.price;
+    final d = doctor;
+    return d != null ? service.priceWith(d) : priceRange(service, branchId: branchId).min;
+  }
+
+  /// نص المبلغ للعرض
+  String get priceText {
+    if (userPackageId != null) return 'من باقتك';
+    if (touchUpOf != null) return 'بدون مبلغ';
+    if (package != null) return money(package!.price);
+    return priceLabel(service, doctor: doctor, branchId: branchId);
+  }
+}

@@ -4,13 +4,10 @@ import 'package:flutter/material.dart';
 import '../data.dart';
 import '../main.dart';
 import '../native.dart';
-import '../payments.dart';
-import '../services_data.dart';
 import '../state.dart';
 import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
 import 'otp_screen.dart';
 
 /// معاينة الحالات اللي ما تطلع عادة (للتجربة، تتقفل قبل النشر من showStatesPreview)
@@ -29,19 +26,18 @@ class StatesPreviewScreen extends StatelessWidget {
       nav.popUntil((r) => r.isFirst);
     }
 
+    final tomorrow = DayInfo(firstOpenDay(fromToday: false)).date;
     final sample = s.upcoming.isNotEmpty
         ? s.upcoming.first
-        : Booking(id: 'demo', doctorId: 'd2', cat: 'ortho', dayIndex: firstOpenDay(fromToday: false), time: 60);
-    final order = Order(
-      number: '10241',
-      items: [OrderItem(serviceById('s1'), 1)],
-      branchId: 'rawdah',
-      subtotal: 200,
-      method: PayMethod.mada,
-      date: DateTime.now(),
-      reference: 'DEMO',
-      cardLast4: '4821',
-    );
+        : Booking(
+            id: 'demo',
+            number: '2400',
+            serviceId: 's5',
+            branchId: 'rawdah',
+            doctorId: 'd2',
+            status: RequestStatus.scheduled,
+            at: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 17, 30),
+          );
 
     return Scaffold(
       body: SafeArea(
@@ -71,35 +67,15 @@ class StatesPreviewScreen extends StatelessWidget {
               _Row('الدفع ثم الفشل', onTap: () => open(const _PayDemo(success: false))),
               const _Row('تجربة حقيقية', hint: 'ادفع ببطاقة رقمها ينتهي بـ 0002 عشان يفشل'),
             ]),
-            _Group(title: 'الحجز', rows: [
-              _Row('الوقت ما عاد متاح', onTap: () => showSlotTakenSheet(context, doctorId: 'd2', day: firstOpenDay(fromToday: false), time: 60)),
-              _Row('حجز مكرر', onTap: () => showDuplicateSheet(context, existing: sample, newTime: sample.time + 60)),
-              _Row('ما فيه أوقات متاحة', onTap: () => openBooking(context, doctorById('d2'), day: fullyBookedDemoDay)),
-            ]),
             _Group(title: 'المواعيد', rows: [
-              _Row('إلغاء موعد مدفوع', onTap: () => showPaidCancelSheet(context, sample, order)),
+              _Row('طلب مكرر', onTap: () => showDuplicateSheet(context, existing: sample)),
+              _Row('إلغاء موعد مدفوع', onTap: () => showPaidCancelSheet(context, sample, 300)),
               _Row('إلغاء متأخر', onTap: () => showLateCancelSheet(context, sample, const Duration(minutes: 80))),
-              _Row(
-                'العيادة ألغت موعدك القادم',
-                hint: s.upcoming.isEmpty ? 'احجز موعد أول' : null,
-                onTap: s.upcoming.isEmpty
-                    ? null
-                    : () {
-                        s.cancelByClinic(s.upcoming.first.id, 'اعتذر الطبيب لظرف طارئ ونعتذر لك');
-                        goTab(1);
-                      },
-              ),
-              _Row('يوم الموعد: وصلت', hint: 'يضيف موعد اليوم في "مواعيدي"', onTap: () {
-                s.addBooking(doctorId: 'd1', cat: 'dental', day: 0, time: 120, branchId: 'rawdah');
-                goTab(1);
-              }),
-              _Row('قائمة الانتظار', hint: 'سجّل وبعد 20 ثانية يجيك تنبيه', onTap: () => openBooking(context, doctorById('d2'), day: fullyBookedDemoDay)),
               _Row('التنبيهات مقفلة', onTap: () {
                 Reminders.blocked.value = true;
                 goTab(1);
               }),
               _Row('التقويم مقفل', onTap: () => showCalendarBlockedSheet(context)),
-              _Row('ما عندك مواعيد', hint: 'في "مواعيدي" اختر يوم ما فيه مواعيد', onTap: () => goTab(1)),
             ]),
             _Group(title: 'الدخول', rows: [
               _Row(

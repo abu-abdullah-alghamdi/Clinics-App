@@ -9,12 +9,13 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
 import 'favorites_screen.dart';
+import 'request_screen.dart';
 import 'search_screen.dart';
 import 'service_screen.dart';
 import 'services_tab.dart';
 import 'shell.dart';
+import 'visit_extras.dart';
 
 /// الصفحة الرئيسية:
 /// الترحيب ← الموعد القادم (لو موجود) ← البانرات (الحجز + العرض) ← الأكثر طلباً ← أطباؤنا
@@ -36,8 +37,7 @@ class HomeTab extends StatelessWidget {
           0,
           MediaQuery.paddingOf(context).top + 22,
           0,
-          // مساحة لشريط "عرض السلة" لما يكون ظاهر
-          navBottomSpace + (s.cartCount > 0 ? cartBarSpace : 0) + 10,
+          navBottomSpace + 10,
         ),
         children: [
           px(Padding(
@@ -120,7 +120,7 @@ class _SectionHeader extends StatelessWidget {
       );
 }
 
-/// شريط الموعد القادم: صورة الطبيب، "موعدك القادم مع ..."، ودائرة فيها سهم
+/// شريط الموعد القادم (اللي حددته العيادة): صورة الطبيب، "موعدك القادم مع ..."، ودائرة فيها سهم
 class _NextAppointmentPill extends StatelessWidget {
   const _NextAppointmentPill({required this.booking});
 
@@ -129,10 +129,12 @@ class _NextAppointmentPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = AppScope.read(context);
-    final d = booking.doctor;
+    final b = booking;
+    final at = b.at ?? DateTime.now();
+    final who = b.doctor?.name ?? b.service.name;
     return Pressable(
       onTap: () => s.setTab(1),
-      semanticLabel: 'موعدك القادم مع ${d.name}، ${booking.day.full} الساعة ${fmtTime(booking.time)}، ${booking.branch.name}',
+      semanticLabel: 'موعدك القادم مع $who، ${fmtDay(at)} الساعة ${fmtClock(at)}، ${b.branch.name}',
       child: Container(
         constraints: const BoxConstraints(minHeight: 60),
         padding: const EdgeInsets.all(8),
@@ -143,7 +145,7 @@ class _NextAppointmentPill extends StatelessWidget {
         ),
         child: Row(
           children: [
-            DoctorAvatar(doctor: d, size: 44),
+            RequestAvatar(booking: b, size: 44),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -152,13 +154,13 @@ class _NextAppointmentPill extends StatelessWidget {
                   Text.rich(
                     TextSpan(children: [
                       const TextSpan(text: 'موعدك القادم مع '),
-                      TextSpan(text: d.name, style: ts(15, weight: FontWeight.w600)),
+                      TextSpan(text: who, style: ts(15, weight: FontWeight.w600)),
                     ]),
                     style: ts(15),
                   ),
                   // اليوم والوقت والفرع في نظرة وحدة
                   Text(
-                    '${booking.day.full} · ${fmtTime(booking.time)} · ${booking.branch.name}',
+                    '${fmtDay(at)} · ${fmtClock(at)} · ${b.branch.name}',
                     style: ts(13, color: AppColors.body),
                   ),
                 ],
@@ -272,7 +274,7 @@ class _BannerCarouselState extends State<_BannerCarousel> {
   }
 }
 
-/// بانر "احجز موعدك بثواني"
+/// بانر "اطلب موعدك بثواني"
 class _BookBanner extends StatelessWidget {
   const _BookBanner();
 
@@ -304,15 +306,15 @@ class _BookBanner extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Semantics(header: true, child: Text('احجز موعدك\nبثواني', style: ts(32, height: 1.2, color: AppColors.onAccent))),
+                  Semantics(header: true, child: Text('اطلب موعدك\nبثواني', style: ts(32, height: 1.2, color: AppColors.onAccent))),
                   const SizedBox(height: 8),
                   Text(
-                    'اختر التخصص والطبيب والوقت اللي يناسبك',
+                    'اختر الخدمة والطبيب والفترة اللي تناسبك',
                     style: ts(15, height: 1.6, color: AppColors.onAccentSoft),
                   ),
                   const Spacer(),
                   PillButton(
-                    label: 'احجز الآن',
+                    label: 'اطلب الآن',
                     height: 40,
                     fontSize: 15,
                     bg: AppColors.onAccent,
@@ -366,7 +368,7 @@ class _OfferBanner extends StatelessWidget {
                     children: [
                       Text(sv.oldPriceText, style: ts(14, color: const Color(0xFFAEAEB2), decoration: TextDecoration.lineThrough)),
                       const SizedBox(width: 8),
-                      Text(sv.priceText, style: ts(14, color: const Color(0xFFE5E5EA))),
+                      Text(priceLabel(sv), style: ts(14, color: const Color(0xFFE5E5EA))),
                     ],
                   ),
                   const Spacer(),
@@ -384,24 +386,14 @@ class _OfferBanner extends StatelessWidget {
 }
 
 /// بطاقة خدمة صغيرة (الأكثر طلباً)
-class _MiniServiceCard extends StatefulWidget {
+class _MiniServiceCard extends StatelessWidget {
   const _MiniServiceCard({required this.service});
 
   final Service service;
 
   @override
-  State<_MiniServiceCard> createState() => _MiniServiceCardState();
-}
-
-class _MiniServiceCardState extends State<_MiniServiceCard> with AddedFlash {
-  void _add() {
-    AppScope.read(context).addToCart(widget.service.id);
-    flashAdded(const Duration(milliseconds: 900));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sv = widget.service;
+    final sv = service;
     void open() => Navigator.of(context).push(iosRoute(ServiceScreen(service: sv)));
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -442,30 +434,20 @@ class _MiniServiceCardState extends State<_MiniServiceCard> with AddedFlash {
                 ),
               ),
             ),
-            // زر الإضافة على خط طرف الصورة، وبعده عن أسفل البطاقة نفس بعد الصورة عن طرفها
+            // زر الطلب على خط طرف الصورة، وبعده عن أسفل البطاقة نفس بعد الصورة عن طرفها
             Padding(
               padding: const EdgeInsetsDirectional.only(start: 6),
               child: Row(
                 children: [
-                  Expanded(child: Text(sv.priceText, style: ts(16, weight: FontWeight.w600))),
-                  Pressable(
-                    onTap: _add,
-                    semanticLabel: added ? 'انضافت ${sv.name} للسلة' : 'إضافة ${sv.name} إلى السلة',
-                    child: AnimatedContainer(
-                      duration: motion(context, 200),
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: added ? AppColors.ink : AppColors.accent,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(
-                        added ? Icons.check_rounded : Icons.add_rounded,
-                        size: 24,
-                        color: added ? AppColors.white : AppColors.onAccent,
-                      ),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: Text(priceLabel(sv), style: ts(16, weight: FontWeight.w600)),
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  RequestCircle(service: sv),
                 ],
               ),
             ),
@@ -486,7 +468,7 @@ class _MiniDoctorCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final d = doctor;
     return Pressable(
-      onTap: () => openBooking(context, d),
+      onTap: () => openRequest(context, doctor: d),
       semanticLabel: '${d.name}، ${d.role}، التقييم ${d.ratingText}',
       child: Container(
         width: 152,

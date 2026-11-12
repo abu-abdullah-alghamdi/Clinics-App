@@ -13,16 +13,16 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'clinic_config.dart';
 import 'data.dart';
+import 'extras.dart';
 import 'services_data.dart';
 
-/// بداية الموعد ونهايته كتاريخ ووقت فعلي
-DateTime bookingStart(Booking b) {
-  final d = DayInfo(b.dayIndex).date;
-  // الأوقات محفوظة بالدقائق بعد الساعة 4 العصر
-  return DateTime(d.year, d.month, d.day, 16).add(Duration(minutes: b.time));
-}
+/// بداية الموعد ونهايته (الموعد اللي حددته العيادة)
+DateTime bookingStart(Booking b) => b.at ?? DateTime.now();
 
-DateTime bookingEnd(Booking b) => bookingStart(b).add(Duration(minutes: b.doctor.duration));
+DateTime bookingEnd(Booking b) => bookingStart(b).add(Duration(minutes: b.doctor?.duration ?? 30));
+
+/// "مع د. فهد الزهراني" (أو فاضي لو الطبيب ما تحدد)
+String withDoctor(Booking b) => b.doctor == null ? '' : ' مع ${b.doctor!.name}';
 
 /// قائمة المشاركة الأصلية من آبل
 Future<void> shareText(BuildContext context, String text) async {
@@ -39,13 +39,13 @@ Future<void> shareText(BuildContext context, String text) async {
 // اسم العيادة ورابط المشاركة من إعدادات العيادة (clinics/<id>/config.json)
 String shareDoctorText(Doctor d) {
   final c = ClinicConfig.current;
-  return '${d.name} · ${d.role}\nاحجز موعدك من تطبيق ${c.appName}\n${c.shareLink}';
+  return '${d.name} · ${d.role}\nاطلب موعدك من تطبيق ${c.appName}\n${c.shareLink}';
 }
 
 String shareServiceText(Service s) {
   final offer = s.onOffer ? ' (خصم ${fmtNum(s.discount)}%)' : '';
   final c = ClinicConfig.current;
-  return '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاحجزها من تطبيق ${c.appName}\n${c.shareLink}';
+  return '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاطلبها من تطبيق ${c.appName}\n${c.shareLink}';
 }
 
 /// الوصف في موعد التقويم
@@ -57,7 +57,7 @@ Future<bool> addBookingToCalendar(Booking b) async {
   final branch = b.branch;
   try {
     return await Add2Calendar.addEvent2Cal(Event(
-      title: '${b.title} مع ${b.doctor.name}',
+      title: '${b.title}${withDoctor(b)}',
       description: calendarEventNote,
       location: '${branch.name}، ${branch.area}',
       startDate: bookingStart(b),
@@ -146,7 +146,7 @@ class Reminders {
       await _plugin.zonedSchedule(
         _id(b.id),
         'تذكير بموعدك',
-        'موعدك بعد ساعة مع ${b.doctor.name} · ${b.branch.name}',
+        'موعدك بعد ساعة${withDoctor(b)} · ${b.branch.name}',
         tz.TZDateTime.from(at, tz.local),
         const NotificationDetails(iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true)),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -154,7 +154,7 @@ class Reminders {
     } catch (_) {}
   }
 
-  /// تنبيه بعد مدة قصيرة (تجربة قائمة الانتظار: "فضى وقت" لين يتربط السيرفر)
+  /// تنبيه بعد مدة قصيرة (تجربة لوحة العيادة: "تم تحديد موعدك" لين يتربط السيرفر)
   static Future<void> notifyLater(String key, String title, String body, Duration after) async {
     if (!_ready) return;
     try {

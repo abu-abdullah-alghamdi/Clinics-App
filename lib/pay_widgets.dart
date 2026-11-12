@@ -37,11 +37,7 @@ class PayMark extends StatelessWidget {
         ),
         child: logo != null
             ? Image.asset(logo, height: logoH, fit: BoxFit.contain)
-            : Icon(
-                method == PayMethod.cash ? CupertinoIcons.building_2_fill : CupertinoIcons.creditcard,
-                size: 18,
-                color: AppColors.ink,
-              ),
+            : const Icon(CupertinoIcons.creditcard, size: 18, color: AppColors.ink),
       ),
     );
   }

@@ -16,13 +16,11 @@ import 'dart:convert';
 import 'package:clinics_app/clinic_config.dart';
 import 'package:clinics_app/data.dart';
 import 'package:clinics_app/main.dart';
-import 'package:clinics_app/screens/booking_screen.dart';
-import 'package:clinics_app/screens/cart_screen.dart';
 import 'package:clinics_app/screens/payment_screen.dart';
 import 'package:clinics_app/screens/phone_screen.dart';
+import 'package:clinics_app/screens/request_screen.dart';
 import 'package:clinics_app/screens/service_screen.dart';
 import 'package:clinics_app/services_data.dart';
-import 'package:clinics_app/state.dart';
 import 'package:clinics_app/states.dart';
 import 'package:clinics_app/theme.dart';
 import 'package:flutter/material.dart';
@@ -157,15 +155,21 @@ void main() {
   /// الشاشات اللي نفحصها: التبويبات، وصفحات فيها اللون المميز
   final screens = <String, ({int tab, Route<void> Function()? open, void Function()? setup})>{
     'الرئيسية': (tab: 0, open: null, setup: null),
-    'مواعيدي (فاضية)': (tab: 1, open: null, setup: null),
+    'مواعيدي': (tab: 1, open: null, setup: null),
     'الأطباء': (tab: 2, open: null, setup: null),
     'حسابي': (tab: 3, open: null, setup: null),
-    'الخدمات (والسلة فيها خدمة)': (tab: 4, open: null, setup: () => appState.addToCart('s1')),
+    'الخدمات': (tab: 4, open: null, setup: null),
     'صفحة خدمة': (tab: 0, open: () => iosRoute(ServiceScreen(service: serviceById('s1'))), setup: null),
-    'حجز موعد مع طبيب': (tab: 2, open: () => iosModal(BookingScreen(doctor: doctorById('d2'))), setup: null),
+    'طلب موعد مع طبيب': (tab: 2, open: () => iosModal(RequestScreen(doctor: doctorById('d2'))), setup: null),
+    'طلب خدمة': (tab: 4, open: () => iosModal(RequestScreen(service: serviceById('s7'))), setup: null),
     'رقم الجوال': (tab: 3, open: () => iosRoute(const PhoneScreen(inside: true)), setup: null),
-    'السلة': (tab: 4, open: () => iosRoute(const CartScreen()), setup: () => appState.addToCart('s1')),
-    'الدفع': (tab: 4, open: () => iosRoute(PaymentScreen(branchId: 'rawdah', items: [OrderItem(serviceById('s2'), 1)])), setup: null),
+    'الدفع': (
+      tab: 1,
+      open: () => iosRoute(PaymentScreen(
+            request: Booking(id: 'c-pay', number: '2497', serviceId: 's2', branchId: 'rawdah', doctorId: 'd1', status: RequestStatus.scheduled, at: DateTime.now().add(const Duration(days: 1))),
+          )),
+      setup: null,
+    ),
     'التحديث الإجباري (حرف الشعار)': (tab: 0, open: null, setup: () => RemoteConfig.updateRequired = true),
   };
 
@@ -177,7 +181,6 @@ void main() {
       screen.setup?.call();
       addTearDown(() {
         RemoteConfig.updateRequired = false;
-        appState.cart.clear();
       });
       appState.setTab(screen.tab);
       await tester.pumpWidget(ClinicsApp(key: UniqueKey()));

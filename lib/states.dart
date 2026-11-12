@@ -726,86 +726,23 @@ Widget _secondary(BuildContext context, String label, {VoidCallback? onTap}) => 
       ),
     );
 
-/// الوقت انحجز قبل ما يأكد: يختار من أقرب الأوقات. يرجّع الوقت المختار
-Future<int?> showSlotTakenSheet(BuildContext context, {required String doctorId, required int day, required int time}) {
-  final picks = nearestFreeTimes(doctorId, day, time);
-  var chosen = picks.isEmpty ? null : picks.first;
-  return showGlassSheet<int>(
-    context,
-    builder: (ctx) => StatefulBuilder(
-      builder: (ctx, setSheet) => _sheetBody([
-        _sheetIcon(CupertinoIcons.clock),
-        _sheetTitle('هذا الوقت ما عاد متاح'),
-        if (picks.isEmpty)
-          _sheetLine('ما فيه أوقات ثانية في نفس اليوم')
-        else ...[
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final t in picks)
-                Pressable(
-                  onTap: () => setSheet(() => chosen = t),
-                  selected: chosen == t,
-                  semanticLabel: fmtTime(t),
-                  child: AnimatedContainer(
-                    duration: motion(ctx, 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: chosen == t ? AppColors.ink : AppColors.bg,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(fmtTime(t), style: ts(16, weight: FontWeight.w500, color: chosen == t ? AppColors.white : AppColors.ink)),
-                  ),
-                ),
-            ],
-          ),
-        ],
-        const SizedBox(height: 16),
-        if (chosen != null)
-          PillButton(label: 'احجز ${fmtTime(chosen!)}', height: 50, fontSize: 17, onTap: () => Navigator.of(ctx).pop(chosen)),
-        _secondary(ctx, picks.isEmpty ? 'اختر يوم ثاني' : 'رجوع'),
-      ]),
-    ),
-  );
-}
-
-/// أقرب 3 أوقات متاحة لنفس الطبيب في نفس اليوم (الأقرب للوقت المطلوب أول)
-List<int> nearestFreeTimes(String doctorId, int day, int time) {
-  final free = [
-    for (var i = 0; i < slotTimes.length; i++)
-      if (slotTimes[i] != time && !slotTaken(doctorId, day, i)) slotTimes[i],
-  ]..sort((a, b) => (a - time).abs().compareTo((b - time).abs()));
-  return (free.take(3).toList())..sort();
-}
-
-/// أقرب يوم ووقت متاح مع الطبيب من يوم معيّن وطالع
-({int day, int time})? nearestOpenSlot(String doctorId, int fromDay) {
-  for (var d = fromDay; d < fromDay + 14; d++) {
-    if (DayInfo(d).closed) continue;
-    for (var i = 0; i < slotTimes.length; i++) {
-      if (!slotTaken(doctorId, d, i)) return (day: d, time: slotTimes[i]);
-    }
-  }
-  return null;
-}
-
-/// إلغاء موعد: يتأكد من السياسة والمبلغ المدفوع قبل الإلغاء
+/// إلغاء طلب أو موعد: الطلب المرسل بتأكيد بسيط، والموعد يتأكد من مدة الإلغاء والمبلغ المدفوع
 Future<void> confirmCancelBooking(BuildContext context, Booking b) async {
   final s = AppScope.read(context);
-  final left = bookingStart(b).difference(DateTime.now());
-  if (left < cancelCutoff) {
-    await showLateCancelSheet(context, b, left);
-    return;
+  final bool ok;
+  if (b.status == RequestStatus.scheduled) {
+    final left = bookingStart(b).difference(DateTime.now());
+    if (left < cancelCutoff) {
+      await showLateCancelSheet(context, b, left);
+      return;
+    }
+    ok = b.paid ? await showPaidCancelSheet(context, b, s.orderFor(b)?.total ?? b.price) : await showCancelAlert(context, b);
+  } else {
+    ok = await showCancelAlert(context, b);
   }
-  final order = s.orderFor(b);
-  final ok = order != null && order.paidOnline
-      ? await showPaidCancelSheet(context, b, order)
-      : await showCancelAlert(context, b);
   if (ok && context.mounted) {
     HapticFeedback.mediumImpact();
-    s.cancelBooking(b.id);
+    s.cancelRequest(b.id);
   }
 }
 
@@ -829,37 +766,36 @@ Future<bool> showNativeAlert(
   return result?.value == 'ok';
 }
 
-/// "اليوم" أو "غداً" أو "يوم الأحد"
-String dayPhrase(int day) => switch (day) {
-      0 => 'اليوم',
-      1 => 'غداً',
-      _ => 'يوم ${DayInfo(day).label}',
-    };
+/// "الأحد 15 نوفمبر · 5:30 م"
+String fmtWhen(DateTime t) => '${fmtDay(t)} · ${fmtClock(t)}';
 
-/// تنبيه آبل الأصلي لإلغاء موعد غير مدفوع
-Future<bool> showCancelAlert(BuildContext context, Booking b) => showNativeAlert(
-      context,
-      title: 'هل تريد إلغاء الموعد؟',
-      message: '${b.doctor.name} · ${b.day.full} · ${fmtTime(b.time)}',
-      cancel: 'تراجع',
-      destructive: 'إلغاء الموعد',
-    );
+/// تنبيه آبل الأصلي لإلغاء طلب أو موعد غير مدفوع
+Future<bool> showCancelAlert(BuildContext context, Booking b) {
+  final scheduled = b.status == RequestStatus.scheduled && b.at != null;
+  return showNativeAlert(
+    context,
+    title: scheduled ? 'هل تريد إلغاء الموعد؟' : 'هل تريد إلغاء الطلب؟',
+    message: scheduled ? '${b.title}${withDoctor(b)} · ${fmtWhen(b.at!)}' : '${b.title} · ${b.branch.name}',
+    cancel: 'تراجع',
+    destructive: scheduled ? 'إلغاء الموعد' : 'إلغاء الطلب',
+  );
+}
 
 /// إلغاء موعد مدفوع: كم دفع وكم يرجع له ومتى
-Future<bool> showPaidCancelSheet(BuildContext context, Booking b, Order order) async {
+Future<bool> showPaidCancelSheet(BuildContext context, Booking b, num paid) async {
   final result = await showGlassSheet<bool>(
     context,
     builder: (ctx) => _sheetBody([
       _sheetTitle('إلغاء الموعد؟'),
-      _sheetLine('${b.title} مع ${b.doctor.name} · ${b.day.full} · ${fmtTime(b.time)}'),
+      _sheetLine('${b.title}${withDoctor(b)}${b.at != null ? ' · ${fmtWhen(b.at!)}' : ''}'),
       const SizedBox(height: 14),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(24)),
         child: Column(
           children: [
-            receiptRow('المدفوع', money(order.total)),
-            receiptRow('يرجع لك $refundWindowText', money(order.total), color: AppColors.green),
+            receiptRow('المدفوع', money(paid)),
+            receiptRow('يرجع لك $refundWindowText', money(paid), color: AppColors.green),
           ],
         ),
       ),
@@ -904,15 +840,13 @@ Future<void> showLateCancelSheet(BuildContext context, Booking b, Duration left)
   );
 }
 
-enum DuplicateChoice { continueNew, editExisting }
-
-/// حجز مكرر: عنده موعد مع نفس الطبيب في نفس اليوم
-Future<DuplicateChoice?> showDuplicateSheet(BuildContext context, {required Booking existing, required int newTime}) {
-  return showGlassSheet<DuplicateChoice>(
+/// طلب مكرر: عنده طلب شغال لنفس الخدمة. يرجّع true لو يبي يرسل طلب جديد، وfalse لو يبي يشوف طلبه
+Future<bool?> showDuplicateSheet(BuildContext context, {required Booking existing}) {
+  return showGlassSheet<bool>(
     context,
     builder: (ctx) => _sheetBody([
-      _sheetIcon(CupertinoIcons.calendar_badge_plus),
-      _sheetTitle('عندك موعد مع ${existing.doctor.n1} نفس اليوم'),
+      _sheetIcon(CupertinoIcons.doc_on_doc),
+      _sheetTitle('عندك طلب ${existing.service.name}'),
       const SizedBox(height: 12),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -920,20 +854,17 @@ Future<DuplicateChoice?> showDuplicateSheet(BuildContext context, {required Book
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${existing.day.full} · ${fmtTime(existing.time)}', style: ts(16, weight: FontWeight.w600)),
+            Text(
+              existing.at != null && existing.status == RequestStatus.scheduled ? fmtWhen(existing.at!) : 'طلب رقم ${existing.number}',
+              style: ts(16, weight: FontWeight.w600),
+            ),
             Text('${existing.title} · ${existing.branch.name}', style: ts(14, color: AppColors.body)),
           ],
         ),
       ),
-      _sheetLine('تبي تحجز موعد ثاني الساعة ${fmtTime(newTime)} ولا تعدّل موعدك الحالي؟'),
       const SizedBox(height: 14),
-      PillButton(
-        label: 'أكمل الحجز الجديد',
-        height: 50,
-        fontSize: 17,
-        onTap: () => Navigator.of(ctx).pop(DuplicateChoice.continueNew),
-      ),
-      _secondary(ctx, 'تعديل موعدي الحالي', onTap: () => Navigator.of(ctx).pop(DuplicateChoice.editExisting)),
+      PillButton(label: 'أرسل طلب جديد', height: 50, fontSize: 17, onTap: () => Navigator.of(ctx).pop(true)),
+      _secondary(ctx, 'عرض طلبي', onTap: () => Navigator.of(ctx).pop(false)),
     ]),
   );
 }
@@ -1003,121 +934,4 @@ class NotificationsBanner extends StatelessWidget {
           ],
         ),
       );
-}
-
-/// ما فيه أوقات متاحة في اليوم المختار: يقترح أقرب موعد، أو ينبهه إذا فضى وقت
-class NoSlotsCard extends StatefulWidget {
-  const NoSlotsCard({super.key, required this.doctor, required this.day, required this.nearest, required this.onBook});
-
-  final Doctor doctor;
-  final int day;
-  final ({int day, int time})? nearest;
-  final VoidCallback onBook;
-
-  @override
-  State<NoSlotsCard> createState() => _NoSlotsCardState();
-}
-
-class _NoSlotsCardState extends State<NoSlotsCard> {
-  String _range = waitRanges.first;
-
-  void _join(AppState s) {
-    HapticFeedback.mediumImpact();
-    s.joinWaitlist(widget.doctor.id, widget.day, _range);
-    // تجربة: تنبيه "فضى وقت" بعد شوي (بعد الربط يرسله السيرفر لما أحد يلغي)
-    Reminders.notifyLater(
-      'wait:${widget.doctor.id}:${widget.day}',
-      'فضى وقت مع ${widget.doctor.name}',
-      '${DayInfo(widget.day).full} الساعة ${fmtTime(90)}، احجزه قبل لا يروح',
-      const Duration(seconds: 20),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final s = AppScope.of(context);
-    final n = widget.nearest;
-    final waiting = s.waitingFor(widget.doctor.id, widget.day);
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 26, 22, 20),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(40)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Center(child: StateIcon(icon: CupertinoIcons.calendar_badge_minus, size: 84)),
-          const SizedBox(height: 12),
-          Text('ما فيه أوقات متاحة ${dayPhrase(widget.day)}', textAlign: TextAlign.center, style: ts(21)),
-          const SizedBox(height: 14),
-          // قائمة الانتظار
-          if (waiting != null)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(24)),
-              child: Row(
-                children: [
-                  const Icon(CupertinoIcons.bell_fill, size: 20, color: AppColors.onAccent),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text('بننبهك أول ما يفضى وقت · $waiting', style: ts(15, weight: FontWeight.w500, color: AppColors.onAccent)),
-                  ),
-                  Semantics(
-                    button: true,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => s.leaveWaitlist(widget.doctor.id, widget.day),
-                      child: Padding(
-                        padding: const EdgeInsets.all(6),
-                        child: Text('إلغاء', style: ts(14, weight: FontWeight.w600, color: AppColors.onAccent)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else ...[
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final r in waitRanges)
-                  Pressable(
-                    onTap: () => setState(() => _range = r),
-                    selected: _range == r,
-                    semanticLabel: r,
-                    child: AnimatedContainer(
-                      duration: motion(context, 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-                      decoration: BoxDecoration(
-                        color: _range == r ? AppColors.ink : AppColors.bg,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(r, style: ts(14, weight: FontWeight.w500, color: _range == r ? AppColors.white : AppColors.ink)),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            PillButton(label: 'نبهني إذا فضى وقت', icon: CupertinoIcons.bell, height: 50, fontSize: 16, onTap: () => _join(s)),
-          ],
-          if (n != null) ...[
-            const SizedBox(height: 16),
-            Text('أقرب موعد متاح مع ${widget.doctor.name}', textAlign: TextAlign.center, style: ts(14, color: AppColors.body)),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 14),
-              decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(999)),
-              child: Text(
-                '${DayInfo(n.day).full} · ${fmtTime(n.time)}',
-                textAlign: TextAlign.center,
-                style: ts(17, weight: FontWeight.w600),
-              ),
-            ),
-            const SizedBox(height: 8),
-            PillButton(label: 'احجز أقرب موعد', height: 50, fontSize: 16, bg: AppColors.bg, onTap: widget.onBook),
-          ],
-        ],
-      ),
-    );
-  }
 }

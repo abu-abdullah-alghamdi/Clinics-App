@@ -7,7 +7,7 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
+import 'request_screen.dart';
 import 'service_screen.dart';
 
 /// البحث من الرئيسية: الخدمات والأطباء مع بعض
@@ -211,7 +211,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             lead: ServiceImage(service: x, size: 48),
                             title: x.name,
                             sub: '★ ${x.ratingText} · ${x.availabilityText}',
-                            trail: Text(x.priceText, style: ts(15, weight: FontWeight.w600)),
+                            trail: Text(priceLabel(x), style: ts(15, weight: FontWeight.w600)),
                             onTap: () => nav.push(iosRoute(ServiceScreen(service: x))),
                           ),
                       ]),
@@ -224,7 +224,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             lead: DoctorAvatar(doctor: d, size: 48),
                             title: d.name,
                             sub: d.role,
-                            onTap: () => openBooking(context, d),
+                            onTap: () => openRequest(context, doctor: d),
                           ),
                       ]),
                     ],

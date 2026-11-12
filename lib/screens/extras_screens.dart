@@ -7,7 +7,7 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'service_booking_screen.dart';
+import 'request_screen.dart';
 
 /// غلاف الصفحات الفرعية: الأزرار الثابتة فوق والمحتوى يمر تحت الساعة
 class _Page extends StatelessWidget {
@@ -82,6 +82,7 @@ class _PackageCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = pkg;
     final sv = p.package.service;
+    final pending = AppScope.of(context).activeSessionOf(p.id);
     return Opacity(
       opacity: p.done ? 0.7 : 1,
       child: Container(
@@ -139,13 +140,25 @@ class _PackageCard extends StatelessWidget {
                 Text(p.done ? 'خلصت' : 'باقي ${fmtNum(p.left)}', style: ts(14, color: AppColors.faint)),
               ],
             ),
-            if (!p.done) ...[
+            if (pending != null) ...[
               const SizedBox(height: 14),
               PillButton(
-                label: 'احجز الجلسة ${fmtNum(p.used + 1)}',
+                label: 'طلب الجلسة #${pending.number}',
+                icon: CupertinoIcons.clock,
+                fontSize: 16,
+                bg: AppColors.bg,
+                onTap: () {
+                  AppScope.read(context).setTab(1);
+                  Navigator.of(context).popUntil((r) => r.isFirst);
+                },
+              ),
+            ] else if (!p.done) ...[
+              const SizedBox(height: 14),
+              PillButton(
+                label: 'اطلب الجلسة ${fmtNum(p.used + 1)}',
                 icon: CupertinoIcons.calendar,
                 fontSize: 16,
-                onTap: () => openServiceBooking(context, [OrderItem(sv, 1)], packageId: p.id),
+                onTap: () => openRequest(context, userPackage: p),
               ),
             ],
           ],

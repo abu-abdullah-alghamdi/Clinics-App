@@ -6,7 +6,7 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
+import 'request_screen.dart';
 import 'services_tab.dart';
 
 /// المفضلة: الأطباء والخدمات (تفتح من قلب الصفحة الرئيسية)
@@ -126,7 +126,7 @@ class _DoctorFavCard extends StatelessWidget {
     final d = doctor;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => openBooking(context, d),
+      onTap: () => openRequest(context, doctor: d),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -143,8 +143,8 @@ class _DoctorFavCard extends StatelessWidget {
             Expanded(
               child: Semantics(
                 button: true,
-                hint: 'فتح صفحة الطبيب والحجز',
-                onTap: () => openBooking(context, d),
+                hint: 'فتح صفحة الطبيب والطلب',
+                onTap: () => openRequest(context, doctor: d),
                 child: MergeSemantics(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

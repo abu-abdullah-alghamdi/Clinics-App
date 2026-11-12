@@ -6,7 +6,7 @@ import '../native.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
+import 'request_screen.dart';
 import 'shell.dart';
 
 class DoctorsTab extends StatefulWidget {
@@ -80,7 +80,7 @@ class _DoctorsTabState extends State<DoctorsTab> {
               // الضغط المطوّل: معاينة وقائمة سريعة
               child: PeekMenu(
                 actions: [
-                  PeekAction('احجز موعد', CupertinoIcons.calendar, () => openBooking(context, d, cat: s.doctorCat)),
+                  PeekAction('اطلب موعد', CupertinoIcons.calendar, () => openRequest(context, doctor: d)),
                   PeekAction(
                     s.favDoctors.contains(d.id) ? 'إزالة من المفضلة' : 'أضف للمفضلة',
                     s.favDoctors.contains(d.id) ? CupertinoIcons.heart_slash : CupertinoIcons.heart,
@@ -101,11 +101,11 @@ class _DoctorsTabState extends State<DoctorsTab> {
                   bottom: Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: PillButton(
-                      label: 'احجز موعد',
+                      label: 'اطلب موعد',
                       height: 40,
                       fontSize: 15,
                       padding: 26,
-                      onTap: () => openBooking(context, d, cat: s.doctorCat),
+                      onTap: () => openRequest(context, doctor: d),
                     ),
                   ),
                   children: [

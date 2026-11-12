@@ -611,67 +611,6 @@ class CutCard extends StatelessWidget {
   }
 }
 
-/// كبسولة يوم طويلة (رقم اليوم واسمه)
-class DayPill extends StatelessWidget {
-  const DayPill({
-    super.key,
-    required this.top,
-    required this.bottom,
-    required this.selected,
-    required this.semanticLabel,
-    this.closed = false,
-    this.dot = false,
-    this.onTap,
-  });
-
-  final String top;
-  final String bottom;
-  final bool selected;
-  final bool closed;
-  final bool dot;
-  final String semanticLabel;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = uiScale(context);
-    final bg = selected ? AppColors.accent : (closed ? AppColors.closed : AppColors.white);
-    final fg = selected ? AppColors.onAccent : (closed ? AppColors.closedText : AppColors.ink);
-    return Pressable(
-      onTap: onTap,
-      enabled: !closed,
-      selected: selected,
-      semanticLabel: '$semanticLabel${closed ? '، مغلق' : ''}${dot ? '، فيه موعد' : ''}',
-      child: MediaQuery.withClampedTextScaling(
-        maxScaleFactor: 2.0,
-        child: AnimatedContainer(
-          duration: motion(context, 250),
-          width: 70 * s,
-          height: 100 * s,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: pillShadow,
-            border: selected && highContrast(context) ? Border.all(color: AppColors.ink, width: 2) : null,
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(top, style: ts(21, weight: FontWeight.w500, color: fg)),
-              const SizedBox(height: 2),
-              Text(bottom, style: ts(13, color: fg)),
-              if (dot) ...[
-                const SizedBox(height: 4),
-                Container(width: 6, height: 6, decoration: BoxDecoration(color: fg, shape: BoxShape.circle)),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// كبسولة فلتر (الكل / أسنان ...)
 class FilterPill extends StatelessWidget {
   const FilterPill({super.key, required this.label, required this.selected, this.onTap});
@@ -1106,50 +1045,6 @@ class SelectDot extends StatelessWidget {
         ),
         child: selected ? const Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent) : null,
       );
-}
-
-/// شريط الأيام: أسبوعين من اليوم، والجمعة مغلقة
-class DayStrip extends StatelessWidget {
-  const DayStrip({super.key, required this.selected, required this.onSelect});
-
-  final int? selected;
-  final ValueChanged<int> onSelect;
-
-  @override
-  Widget build(BuildContext context) => HScroll(
-        height: 106,
-        children: [
-          for (final day in [for (var i = 0; i < 14; i++) DayInfo(i)])
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: DayPill(
-                top: day.dayNum,
-                bottom: day.closed ? 'مغلق' : day.short,
-                semanticLabel: day.full,
-                closed: day.closed,
-                selected: selected == day.offset,
-                onTap: () => onSelect(day.offset),
-              ),
-            ),
-        ],
-      );
-}
-
-/// علامة "تمت الإضافة" لحظة بعد الإضافة للسلة، وبعدها يرجع الزر لحالته
-mixin AddedFlash<T extends StatefulWidget> on State<T> {
-  bool added = false;
-
-  void flashAdded(Duration duration, {VoidCallback? onReset}) {
-    HapticFeedback.lightImpact();
-    setState(() => added = true);
-    Future.delayed(duration, () {
-      if (!mounted) return;
-      setState(() {
-        added = false;
-        onReset?.call();
-      });
-    });
-  }
 }
 
 /// اختيار بين خيارين أو أكثر في كبسولة وحدة (مثل "لي / لشخص ثاني")

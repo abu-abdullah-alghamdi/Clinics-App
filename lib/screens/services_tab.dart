@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../data.dart';
 import '../main.dart';
@@ -9,60 +8,13 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'cart_screen.dart';
-import 'service_booking_screen.dart';
+import 'request_screen.dart';
 import 'service_screen.dart';
 import 'shell.dart';
 
 const starColor = Color(0xFFFFB800);
 
-/// المسافة اللي ياخذها شريط "عرض السلة" فوق الشريط العائم
-const cartBarSpace = 74.0;
-
-/// شريط "عرض السلة": عدد العناصر في مربع، وكلمة عرض السلة، والمجموع
-class CartBar extends StatelessWidget {
-  const CartBar({super.key, required this.count, required this.subtotal});
-
-  final int count;
-  final int subtotal;
-
-  @override
-  Widget build(BuildContext context) {
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: 1.6,
-      child: Pressable(
-        onTap: () => Navigator.of(context).push(iosRoute(const CartScreen())),
-        semanticLabel: 'عرض السلة، ${fmtNum(count)} عناصر، المجموع ${spokenMoney(subtotal)}',
-        child: Container(
-          constraints: const BoxConstraints(minHeight: 62),
-          padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 22, 10),
-          decoration: BoxDecoration(
-            color: AppColors.ink,
-            borderRadius: BorderRadius.circular(999),
-            boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 10))],
-          ),
-          child: Row(
-            children: [
-              Container(
-                constraints: const BoxConstraints(minWidth: 42),
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(14)),
-                child: Text(fmtNum(count), style: ts(18, weight: FontWeight.w700, color: AppColors.onAccent)),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Text('عرض السلة', style: ts(17, weight: FontWeight.w600, color: AppColors.white))),
-              Text(money(subtotal), style: ts(17, weight: FontWeight.w600, color: AppColors.white)),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// صفحة الخدمات: قائمة الخدمات وزر السلة
+/// صفحة الخدمات: قائمة الخدمات حسب التخصص
 class ServicesTab extends StatelessWidget {
   const ServicesTab({super.key});
 
@@ -76,18 +28,7 @@ class ServicesTab extends StatelessWidget {
       bottom: false,
       child: LargeTitleScroll(
         title: 'الخدمات',
-        // زر السلة من آبل: زجاج بارز بلون التطبيق، والرقم فوقه
-        trailing: AppleIconButton(
-          symbol: 'bag',
-          fallback: CupertinoIcons.bag,
-          label: 'السلة',
-          prominent: true,
-          tint: AppColors.accent,
-          badge: s.cartCount,
-          onTap: () => Navigator.of(context).push(iosRoute(const CartScreen())),
-        ),
-        // لما يطلع شريط "عرض السلة" نزيد المسافة تحت عشان ما يغطي آخر خدمة
-        bottomSpace: navBottomSpace + (s.cartCount > 0 ? cartBarSpace * uiScale(context).clamp(1.0, 1.6) : 0),
+        bottomSpace: navBottomSpace,
         children: [
           // فلترة حسب التخصص
           HScroll(
@@ -101,11 +42,7 @@ class ServicesTab extends StatelessWidget {
           for (final sv in list) ...[
             px(PeekMenu(
               actions: [
-                PeekAction('احجز الخدمة', CupertinoIcons.calendar, () => openServiceBooking(context, [OrderItem(sv, 1)])),
-                PeekAction('أضف إلى السلة', CupertinoIcons.bag_badge_plus, () {
-                  s.addToCart(sv.id);
-                  HapticFeedback.lightImpact();
-                }),
+                PeekAction('اطلب الخدمة', CupertinoIcons.calendar, () => openRequest(context, service: sv)),
                 PeekAction(
                   s.favServices.contains(sv.id) ? 'إزالة من المفضلة' : 'أضف للمفضلة',
                   s.favServices.contains(sv.id) ? CupertinoIcons.heart_slash : CupertinoIcons.heart,
@@ -143,25 +80,33 @@ class RatingRow extends StatelessWidget {
       );
 }
 
-/// بطاقة الخدمة: الصورة، الاسم، التوفر، التقييم، السعر، وزر الإضافة
-class ServiceCard extends StatefulWidget {
+/// زر الطلب السريع على بطاقة الخدمة (دائرة بلون التطبيق فيها سهم)
+class RequestCircle extends StatelessWidget {
+  const RequestCircle({super.key, required this.service});
+
+  final Service service;
+
+  @override
+  Widget build(BuildContext context) => CircleButton(
+        icon: Icons.north_west_rounded,
+        size: 44,
+        iconSize: 22,
+        bg: AppColors.accent,
+        fg: AppColors.onAccent,
+        semanticLabel: 'اطلب ${service.name}',
+        onTap: () => openRequest(context, service: service),
+      );
+}
+
+/// بطاقة الخدمة: الصورة، الاسم، التوفر، التقييم، السعر، وزر الطلب
+class ServiceCard extends StatelessWidget {
   const ServiceCard({super.key, required this.service});
 
   final Service service;
 
   @override
-  State<ServiceCard> createState() => _ServiceCardState();
-}
-
-class _ServiceCardState extends State<ServiceCard> with AddedFlash {
-  void _add() {
-    AppScope.read(context).addToCart(widget.service.id);
-    flashAdded(const Duration(milliseconds: 900));
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final sv = widget.service;
+    final sv = service;
     final s = AppScope.of(context);
     void open() => Navigator.of(context).push(iosRoute(ServiceScreen(service: sv)));
     // الضغط على البطاقة يفتح صفحة الخدمة (زر + والقلب لهم ضغطتهم الخاصة)
@@ -240,35 +185,13 @@ class _ServiceCardState extends State<ServiceCard> with AddedFlash {
                         crossAxisAlignment: WrapCrossAlignment.center,
                         spacing: 6,
                         children: [
-                          Text(sv.priceText, style: ts(19, weight: FontWeight.w600)),
+                          Text(priceLabel(sv), style: ts(19, weight: FontWeight.w600)),
                           if (sv.onOffer)
                             Text(sv.oldPriceText, style: ts(13, color: AppColors.faint, decoration: TextDecoration.lineThrough)),
                         ],
                       ),
                     ),
-                    // زر الإضافة للسلة: مربع فيه + (يتحول لعلامة صح لحظة بعد الإضافة)
-                    Pressable(
-                      onTap: _add,
-                      semanticLabel: added ? 'انضافت ${sv.name} للسلة' : 'إضافة ${sv.name} إلى السلة',
-                      child: AnimatedContainer(
-                        duration: motion(context, 200),
-                        width: 44,
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: added ? AppColors.ink : AppColors.accent,
-                          shape: BoxShape.circle,
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: motion(context, 180),
-                          child: Icon(
-                            added ? Icons.check_rounded : Icons.add_rounded,
-                            key: ValueKey(added),
-                            size: 24,
-                            color: added ? AppColors.white : AppColors.onAccent,
-                          ),
-                        ),
-                      ),
-                    ),
+                    RequestCircle(service: sv),
                   ],
                 ),
               ],

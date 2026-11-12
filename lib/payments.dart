@@ -5,7 +5,7 @@
 /// باقي التطبيق ما يحتاج أي تعديل.
 library;
 
-enum PayMethod { applePay, mada, card, tabby, tamara, cash }
+enum PayMethod { applePay, mada, card, tabby, tamara }
 
 extension PayMethodText on PayMethod {
   String get label => switch (this) {
@@ -14,7 +14,6 @@ extension PayMethodText on PayMethod {
         PayMethod.card => 'بطاقة ائتمانية',
         PayMethod.tabby => 'تابي',
         PayMethod.tamara => 'تمارا',
-        PayMethod.cash => 'الدفع في العيادة',
       };
 
   String get hint => switch (this) {
@@ -23,7 +22,6 @@ extension PayMethodText on PayMethod {
         PayMethod.card => 'Visa / Mastercard',
         PayMethod.tabby => '4 دفعات بدون فوائد',
         PayMethod.tamara => 'قسّمها بدون فوائد',
-        PayMethod.cash => 'ادفع عند زيارتك للفرع',
       };
 
   bool get needsCard => this == PayMethod.mada || this == PayMethod.card;

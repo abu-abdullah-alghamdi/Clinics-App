@@ -8,6 +8,7 @@ import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'branches_screen.dart';
+import 'clinic_demo_screen.dart';
 import 'extras_screens.dart';
 import 'favorites_screen.dart';
 import 'orders_screen.dart';
@@ -134,7 +135,7 @@ class AccountTab extends StatelessWidget {
                             iosRoute(ProfileScreen(phone: s.profile!.phone, initial: s.profile)),
                           )),
                 if (s.loggedIn)
-                  row('طلباتي',
+                  row('المدفوعات',
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -168,8 +169,10 @@ class AccountTab extends StatelessWidget {
                 row('تواصل مع العيادة', onTap: () => _contact(context)),
                 row('سياسة الخصوصية', divider: showStatesPreview, onTap: () => Navigator.of(context).push(iosRoute(const PrivacyScreen()))),
                 // للتجربة بس: يتقفل من showStatesPreview في states.dart قبل النشر
-                if (showStatesPreview)
+                if (showStatesPreview) ...[
+                  row('لوحة العيادة (تجريبية)', onTap: () => Navigator.of(context).push(iosRoute(const ClinicDemoScreen()))),
                   row('معاينة الحالات', divider: false, onTap: () => Navigator.of(context).push(iosRoute(const StatesPreviewScreen()))),
+                ],
               ],
             ),
           ),

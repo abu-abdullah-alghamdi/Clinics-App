@@ -8,7 +8,7 @@ import 'phone_screen.dart';
 
 /// قاعدة وحدة: أي حجز أو دفع يحتاج جوال موثّق.
 /// لو المستخدم مسجّل يرجّع true على طول، وإلا يطلب منه الدخول ويرجعه لنفس الخطوة
-Future<bool> requireLogin(BuildContext context, {String title = 'سجّل دخولك لإكمال الحجز'}) async {
+Future<bool> requireLogin(BuildContext context, {String title = 'سجّل دخولك لإرسال الطلب'}) async {
   final s = AppScope.read(context);
   if (s.loggedIn) return true;
   var go = false;

@@ -15,14 +15,12 @@ import 'dart:convert';
 
 import 'package:clinics_app/data.dart';
 import 'package:clinics_app/main.dart';
-import 'package:clinics_app/screens/booking_screen.dart';
-import 'package:clinics_app/screens/cart_screen.dart';
-import 'package:clinics_app/screens/confirm_screen.dart';
+import 'package:clinics_app/screens/clinic_demo_screen.dart';
 import 'package:clinics_app/screens/otp_screen.dart';
 import 'package:clinics_app/screens/payment_screen.dart';
 import 'package:clinics_app/screens/phone_screen.dart';
 import 'package:clinics_app/screens/profile_screen.dart';
-import 'package:clinics_app/screens/service_booking_screen.dart';
+import 'package:clinics_app/screens/request_screen.dart';
 import 'package:clinics_app/screens/service_screen.dart';
 import 'package:clinics_app/services_data.dart';
 import 'package:clinics_app/state.dart';
@@ -124,6 +122,20 @@ Future<void> _shot(
   await tester.pump();
 }
 
+/// موعد حددته العيادة بكرة 5:30 م (لصفحة الدفع)
+Booking _scheduled(String serviceId, String doctorId) {
+  final d = DayInfo(1).date;
+  return Booking(
+    id: 'g-$serviceId',
+    number: '2499',
+    serviceId: serviceId,
+    branchId: 'rawdah',
+    doctorId: doctorId,
+    status: RequestStatus.scheduled,
+    at: DateTime(d.year, d.month, d.day, 17, 30),
+  );
+}
+
 void main() {
   final ios = TargetPlatformVariant.only(TargetPlatform.iOS);
 
@@ -153,29 +165,14 @@ void main() {
   testWidgets('صفحة الخدمة', (t) => _shot(t, '06_service', open: () => iosRoute(ServiceScreen(service: serviceById('s1')))), variant: ios);
   testWidgets('صفحة خدمة فيها باقات وتقسيط',
       (t) => _shot(t, '07_service_packages', open: () => iosRoute(ServiceScreen(service: serviceById('s7')))), variant: ios);
-  testWidgets('حجز موعد مع طبيب', (t) => _shot(t, '08_doctor_booking', open: () => iosModal(BookingScreen(doctor: doctorById('d2')))), variant: ios);
-  testWidgets('حجز خدمة',
-      (t) => _shot(t, '09_service_booking', open: () => iosModal(ServiceBookingScreen(items: [OrderItem(serviceById('s1'), 1)]))),
-      variant: ios);
-  testWidgets('تأكيد الحجز', (t) {
-    return _shot(t, '10_confirm',
-        open: () => iosRoute(ConfirmScreen(
-              doctor: doctorById('d1'),
-              cat: 'dental',
-              day: firstOpenDay(fromToday: false),
-              time: 60,
-              branchId: 'rawdah',
-            )));
+  testWidgets('طلب موعد مع طبيب', (t) => _shot(t, '08_doctor_request', open: () => iosModal(RequestScreen(doctor: doctorById('d2')))), variant: ios);
+  testWidgets('طلب خدمة', (t) => _shot(t, '09_service_request', open: () => iosModal(RequestScreen(service: serviceById('s1')))), variant: ios);
+  testWidgets('تم إرسال الطلب', (t) {
+    final b = Booking(id: 'g-sent', number: '2498', serviceId: 's1', branchId: 'salamah', period: Period.morning);
+    return _shot(t, '10_request_sent', open: () => iosRoute(RequestSentScreen(request: b)));
   }, variant: ios);
-  testWidgets('الدفع', (t) {
-    return _shot(t, '11_payment', open: () => iosRoute(PaymentScreen(branchId: 'rawdah', items: [OrderItem(serviceById('s2'), 1)])));
-  }, variant: ios);
-  testWidgets('السلة', (t) async {
-    appState.addToCart('s1');
-    appState.addToCart('s4');
-    await _shot(t, '12_cart', open: () => iosRoute(const CartScreen()));
-    appState.cart.clear();
-  }, variant: ios);
+  testWidgets('الدفع', (t) => _shot(t, '11_payment', open: () => iosRoute(PaymentScreen(request: _scheduled('s2', 'd1')))), variant: ios);
+  testWidgets('لوحة العيادة', (t) => _shot(t, '12_clinic_demo', open: () => iosRoute(const ClinicDemoScreen())), variant: ios);
   testWidgets('رقم الجوال', (t) => _shot(t, '13_phone', open: () => iosRoute(const PhoneScreen(inside: true))), variant: ios);
   testWidgets('رمز التحقق', (t) => _shot(t, '17_otp', open: () => iosRoute(const OtpScreen(national: '551234567', inside: true))), variant: ios);
   testWidgets('رمز التحقق غير صحيح', (t) {
@@ -201,6 +198,6 @@ void main() {
   }, variant: ios);
   testWidgets('الدفع بعد التسجيل (بدون ضريبة)', (t) {
     return _shot(t, '16_payment_logged_in',
-        open: () => iosRoute(PaymentScreen(branchId: 'rawdah', items: [OrderItem(serviceById('s1'), 1)])));
+        open: () => iosRoute(PaymentScreen(request: _scheduled('s1', 'd1'))));
   }, variant: ios);
 }

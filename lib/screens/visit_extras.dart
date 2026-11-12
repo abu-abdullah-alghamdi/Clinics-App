@@ -47,6 +47,20 @@ Future<void> showInfoAlert(BuildContext context, String title, String message) =
 
 // ───────── التقييم بعد الزيارة
 
+/// صورة الطلب: الطبيب لو تحدد، وإلا صورة الخدمة
+class RequestAvatar extends StatelessWidget {
+  const RequestAvatar({super.key, required this.booking, this.size = 64});
+
+  final Booking booking;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = booking.doctor;
+    return d != null ? ExcludeSemantics(child: DoctorAvatar(doctor: d, size: size)) : ServiceImage(service: booking.service, size: size);
+  }
+}
+
 /// بطاقة "كيف كانت زيارتك؟" لآخر زيارة مكتملة ما تقيّمت
 class RatePrompt extends StatelessWidget {
   const RatePrompt({super.key, required this.booking});
@@ -56,20 +70,19 @@ class RatePrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final b = booking;
-    final d = b.doctor;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(34), boxShadow: cardShadow),
       child: Row(
         children: [
-          DoctorAvatar(doctor: d, size: 56),
+          RequestAvatar(booking: b, size: 56),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('كيف كانت زيارتك؟', style: ts(17, weight: FontWeight.w600)),
-                Text('${d.name} · ${b.title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(14, color: AppColors.faint)),
+                Text('${b.doctor?.name ?? b.branch.name} · ${b.title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(14, color: AppColors.faint)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -114,11 +127,11 @@ Future<void> showRatingSheet(BuildContext context, Booking b, {int stars = 5}) {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Center(child: DoctorAvatar(doctor: b.doctor, size: 72)),
+              Center(child: RequestAvatar(booking: b, size: 72)),
               const SizedBox(height: 10),
               Semantics(
                 header: true,
-                child: Text('قيّم زيارتك مع ${b.doctor.n1}', textAlign: TextAlign.center, style: ts(22, weight: FontWeight.w500)),
+                child: Text(b.doctor == null ? 'قيّم زيارتك' : 'قيّم زيارتك مع ${b.doctor!.n1}', textAlign: TextAlign.center, style: ts(22, weight: FontWeight.w500)),
               ),
               Text('${b.title} · ${b.branch.name}', textAlign: TextAlign.center, style: ts(14, color: AppColors.faint)),
               const SizedBox(height: 12),
@@ -227,163 +240,4 @@ class RatedStars extends StatelessWidget {
           ),
         ),
       );
-}
-
-// ───────── الحجز لشخص ثاني
-
-/// طلب مدفوع لشخص ثاني: ينتظر العيادة تحدد الموعد معه
-class OtherPersonCard extends StatelessWidget {
-  const OtherPersonCard({super.key, required this.order});
-
-  final Order order;
-
-  @override
-  Widget build(BuildContext context) {
-    final o = order;
-    final first = o.items.first;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(46), boxShadow: cardShadow),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(999)),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(CupertinoIcons.person_2_fill, size: 15, color: AppColors.ink),
-                const SizedBox(width: 6),
-                Text('لـ ${o.recipientName}', style: ts(13, weight: FontWeight.w600)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              ServiceImage(service: first.service, size: 72),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(o.items.map((i) => i.label).join('، '), style: ts(22, height: 1.3)),
-                    Text('طلب رقم ${o.number}', style: ts(14, color: AppColors.faint)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(color: const Color(0xFFFFF4D6), borderRadius: BorderRadius.circular(22)),
-            child: Row(
-              children: [
-                const Icon(CupertinoIcons.clock, size: 22, color: Color(0xFF8A5A00)),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('بانتظار تحديد الموعد', style: ts(15, weight: FontWeight.w600, color: const Color(0xFF8A5A00))),
-                      Text('العيادة بتتواصل معه', style: ts(13, color: const Color(0xFF8A5A00))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              const Icon(Icons.check_rounded, size: 18, color: AppColors.green),
-              const SizedBox(width: 6),
-              Text('دفعت ${money(o.total)}', style: ts(14)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: PillButton(
-              label: 'تواصل مع العيادة',
-              icon: CupertinoIcons.phone_fill,
-              bg: AppColors.bg,
-              fontSize: 16,
-              onTap: () => showClinicContact(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ───────── يوم الموعد: وصلت
-
-/// بعد ما يسجل وصوله: كم قبله وكم تقريباً، وتواصل مع الاستقبال
-class CheckedInBox extends StatelessWidget {
-  const CheckedInBox({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget tile(String n, String label, Color bg) => Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(26)),
-            child: Column(
-              children: [
-                Text(n, textDirection: TextDirection.ltr, style: ts(36, weight: FontWeight.w600, height: 1.1, color: fgOn(bg))),
-                Text(label, style: ts(13, color: fgOn(bg))),
-              ],
-            ),
-          ),
-        );
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          children: [
-            const Icon(CupertinoIcons.checkmark_seal_fill, size: 20, color: AppColors.green),
-            const SizedBox(width: 8),
-            Expanded(child: Text('سجلنا وصولك، ننبهك لما يجي دورك', style: ts(15, weight: FontWeight.w500))),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Semantics(
-          label: 'قبلك 2، تقريباً 15 دقيقة',
-          child: ExcludeSemantics(
-            child: Row(
-              children: [
-                tile('2', 'قبلك', AppColors.accent),
-                const SizedBox(width: 8),
-                tile('~15', 'دقيقة تقريباً', AppColors.bg),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(child: Text('تبي شي من الاستقبال؟', style: ts(15))),
-            CircleButton(
-              icon: CupertinoIcons.chat_bubble_fill,
-              bg: AppColors.bg,
-              semanticLabel: 'واتساب',
-              onTap: () => openLink(context, clinicWhatsappUri),
-            ),
-            const SizedBox(width: 8),
-            CircleButton(
-              icon: CupertinoIcons.phone_fill,
-              bg: AppColors.bg,
-              semanticLabel: 'اتصال',
-              onTap: () => openLink(context, clinicCallUri),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }

@@ -10,7 +10,7 @@ import '../widgets.dart';
 
 String _date(DateTime d) => '${fmtNum(d.day)} ${monthNames[d.month - 1]} ${fmtNum(d.year)}';
 
-/// بطاقة طلب: رقم الطلب، الخدمات، الفرع، طريقة الدفع، الإجمالي
+/// بطاقة عملية دفع: رقمها، الخدمة، الفرع، طريقة الدفع، الإجمالي
 class OrderCard extends StatelessWidget {
   const OrderCard({super.key, required this.order});
 
@@ -18,7 +18,6 @@ class OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cash = order.method == PayMethod.cash;
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 18, 22, 14),
       decoration: BoxDecoration(
@@ -31,17 +30,11 @@ class OrderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text('طلب #${order.number}', style: ts(18, weight: FontWeight.w600))),
+              Expanded(child: Text('عملية #${order.number}', style: ts(18, weight: FontWeight.w600))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                decoration: BoxDecoration(
-                  color: cash ? AppColors.bg : AppColors.accent,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  cash ? 'الدفع في العيادة' : 'مدفوع',
-                  style: ts(13, weight: FontWeight.w600, color: cash ? AppColors.ink : AppColors.onAccent),
-                ),
+                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(999)),
+                child: Text('مدفوع', style: ts(13, weight: FontWeight.w600, color: AppColors.onAccent)),
               ),
             ],
           ),
@@ -65,7 +58,7 @@ class OrderCard extends StatelessWidget {
   }
 }
 
-/// طلباتي (من صفحة "حسابي")
+/// المدفوعات (من صفحة "حسابي")
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({super.key});
 
@@ -75,7 +68,7 @@ class OrdersScreen extends StatelessWidget {
     return Scaffold(
       body: SafeArea(
         top: false,
-        child: FloatingBar(title: 'طلباتي', body: ListView(
+        child: FloatingBar(title: 'المدفوعات', body: ListView(
           padding: EdgeInsets.fromLTRB(14, FloatingBar.safeTop(context) + FloatingBar.contentTop, 14, 30),
           children: [
             if (s.orders.isEmpty)
@@ -85,9 +78,7 @@ class OrdersScreen extends StatelessWidget {
                   children: [
                     const Icon(CupertinoIcons.doc_text, size: 44, color: AppColors.faint),
                     const SizedBox(height: 12),
-                    Text('ما عندك طلبات حتى الآن', style: ts(20)),
-                    const SizedBox(height: 6),
-                    Text('طلبات الخدمات اللي تدفعها تظهر هنا', style: ts(15, color: AppColors.body)),
+                    Text('ما عندك مدفوعات حتى الآن', style: ts(20)),
                   ],
                 ),
               )

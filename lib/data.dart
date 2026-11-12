@@ -82,8 +82,6 @@ String fmtRemaining(Duration d) {
 
 String fmtRange(int start, int duration) => 'من ${fmtTime(start)} إلى ${fmtTime(start + duration)}';
 
-const slotTimes = [0, 30, 60, 90, 120, 150, 180, 210, 240];
-
 const categories = {
   'dental': 'كشف وعلاج الأسنان',
   'ortho': 'استشارة تقويم',
@@ -116,6 +114,7 @@ class Doctor {
     required this.yearsCount,
     required this.rating,
     required this.reviews,
+    this.consultant = false,
   });
 
   final String id;
@@ -135,6 +134,9 @@ class Doctor {
   final int yearsCount;
   final double rating;
   final int reviews;
+
+  /// استشاري (سعره أعلى من الأخصائي في نفس الخدمة)
+  final bool consultant;
 
   String get ratingText => rating.toStringAsFixed(1);
 
@@ -188,6 +190,7 @@ const doctors = [
     yearsCount: 12,
     rating: 4.8,
     reviews: 210,
+    consultant: true,
   ),
   Doctor(
     id: 'd3',
@@ -229,51 +232,108 @@ const doctors = [
 
 Doctor doctorById(String id) => doctors.firstWhere((d) => d.id == id, orElse: () => doctors.first);
 
-/// يوم تجريبي محجوز بالكامل عند د. فهد (ثاني يوم دوام بعد اليوم) عشان تبان حالة "ما فيه أوقات"
-int get fullyBookedDemoDay => firstOpenDay(fromToday: false) + 1 + (DayInfo(firstOpenDay(fromToday: false) + 1).closed ? 1 : 0);
+/// فترة الزيارة اللي يفضّلها المريض (العيادة تحدد الوقت حسب جدولها)
+enum Period { morning, noon, evening }
 
-/// هل الوقت محجوز؟ (بيانات تجريبية ثابتة لكل طبيب ويوم)
-bool slotTaken(String doctorId, int day, int index) {
-  if (doctorId == 'd2' && day == fullyBookedDemoDay) return true;
-  final seed = doctorId.codeUnitAt(1);
-  return (index * 7 + (day + 1) * 3 + seed) % 4 == 0;
+extension PeriodText on Period {
+  String get label => switch (this) {
+        Period.morning => 'صباحاً',
+        Period.noon => 'ظهراً',
+        Period.evening => 'مساءً',
+      };
+
+  /// ساعة مقترحة داخل الفترة (للوحة العيادة التجريبية)
+  int get hour => switch (this) {
+        Period.morning => 10,
+        Period.noon => 13,
+        Period.evening => 17,
+      };
 }
 
+/// حالة الطلب:
+/// sent أرسله المريض ← approved وافقت العيادة على الباقة ← scheduled حددت العيادة الموعد
+/// ← completed مكتمل / noShow لم يحضر / cancelled ملغي
+enum RequestStatus { sent, approved, scheduled, completed, noShow, cancelled }
+
+/// زيارة (خدمة أو كشف) أو شراء باقة جلسات
+enum RequestKind { visit, package }
+
+/// "الأحد 15 نوفمبر" (أو اليوم / غداً / أمس)
+String fmtDay(DateTime t) {
+  final d = DateTime(t.year, t.month, t.day);
+  return DayInfo((d.difference(appToday).inHours / 24).round()).full;
+}
+
+/// طلب موعد من المريض للعيادة (بدون تاريخ ووقت: العيادة تتواصل معه وتحدد الموعد من لوحة التحكم)
 class Booking {
   Booking({
     required this.id,
-    required this.doctorId,
-    required this.cat,
-    required this.dayIndex,
-    required this.time,
-    this.branchId = 'rawdah',
-    this.serviceIds = const [],
-    this.orderNumber,
-  });
+    required this.number,
+    required this.serviceId,
+    required this.branchId,
+    this.doctorId,
+    this.period = Period.evening,
+    this.kind = RequestKind.visit,
+    this.packageId,
+    this.userPackageId,
+    this.touchUpOf,
+    this.recipientName,
+    this.recipientPhone,
+    this.status = RequestStatus.sent,
+    this.at,
+    DateTime? createdAt,
+  }) : createdAt = createdAt ?? DateTime.now();
 
   final String id;
-  String doctorId;
-  String cat;
-  int dayIndex;
-  int time;
 
-  /// الفرع اللي فيه الموعد
-  String branchId;
+  /// رقم الطلب
+  final String number;
+  final String serviceId;
+  final String branchId;
 
-  /// الخدمات المحجوزة (فاضية = استشارة/زيارة عادية)
-  final List<String> serviceIds;
+  /// null = الطبيب المتاح (العيادة تحدده مع الموعد)
+  String? doctorId;
+  final Period period;
+  final RequestKind kind;
 
-  /// رقم الطلب لو الموعد مدفوع من التطبيق
-  final String? orderNumber;
+  /// الباقة المطلوب شراؤها (لطلب الباقة)
+  final String? packageId;
 
-  /// سبب الإلغاء لو العيادة ألغت الموعد (يوصل من نظام العيادة بعد الربط)
+  /// جلسة من باقة مدفوعة (بدون مبلغ)
+  final String? userPackageId;
+
+  /// رتوش لجلسة ليزر سابقة (بدون مبلغ)
+  final String? touchUpOf;
+
+  /// الطلب لشخص ثاني
+  final String? recipientName;
+  final String? recipientPhone;
+
+  RequestStatus status;
+
+  /// الموعد اللي حددته العيادة
+  DateTime? at;
+  final DateTime createdAt;
+
+  /// سبب الإلغاء لو العيادة ألغته
   String? clinicCancelReason;
 
-  bool get cancelledByClinic => clinicCancelReason != null;
+  /// اختار يدفع في الفرع
+  bool payLater = false;
 
-  Doctor get doctor => doctorById(doctorId);
-  DayInfo get day => DayInfo(dayIndex);
-  bool get completed => dayIndex < 0;
-  String get serviceName => categories[cat] ?? '';
-  String get range => fmtRange(time, doctor.duration);
+  /// رقم عملية الدفع لو دفع من التطبيق
+  String? orderNumber;
+
+  bool get cancelledByClinic => clinicCancelReason != null;
+  bool get isPackage => kind == RequestKind.package;
+  bool get forOther => recipientName != null;
+  bool get paid => orderNumber != null;
+
+  /// جلسة باقة أو رتوش: ما عليها مبلغ
+  bool get free => userPackageId != null || touchUpOf != null;
+
+  /// لسا شغال (ما اكتمل ولا انلغى)
+  bool get active => status == RequestStatus.sent || status == RequestStatus.approved || status == RequestStatus.scheduled;
+  bool get past => !active;
+  Doctor? get doctor => doctorId == null ? null : doctorById(doctorId!);
 }

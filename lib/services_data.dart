@@ -16,10 +16,10 @@ class Branch {
   final double lat;
   final double lng;
 
-  /// أيام العمل: السبت إلى الخميس، من 4 العصر إلى 8 المساء (الجمعة مغلق)
-  static const hoursText = 'السبت – الخميس · 4:00 م – 8:00 م';
+  /// أيام العمل: السبت إلى الخميس، من 9 الصباح إلى 9 المساء (الجمعة مغلق)
+  static const hoursText = 'السبت – الخميس · 9:00 ص – 9:00 م';
 
-  bool openAt(DateTime t) => t.weekday != DateTime.friday && t.hour >= 16 && t.hour < 20;
+  bool openAt(DateTime t) => t.weekday != DateTime.friday && t.hour >= 9 && t.hour < 21;
 
   /// رابط الاتجاهات في قوقل ماب (يفتح التطبيق لو مثبت، وإلا المتصفح)
   Uri get mapsUri => Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
@@ -44,12 +44,28 @@ class Service {
     required this.tint,
     this.branchIds,
     this.discount = 0,
+    this.consultantPrice,
+    this.kashf = false,
+    this.photoId,
   });
 
   /// نسبة الخصم (0 = بدون عرض)
   final int discount;
 
-  int get finalPrice => (price * (100 - discount) / 100).round();
+  /// سعر الخدمة مع الاستشاري (null = نفس السعر)
+  final int? consultantPrice;
+
+  /// كشف (أول زيارة للتخصص)
+  final bool kashf;
+
+  /// صورة خدمة ثانية (لو ما لها صورة خاصة)
+  final String? photoId;
+
+  int get finalPrice => _off(price);
+  int _off(int p) => (p * (100 - discount) / 100).round();
+
+  /// السعر مع طبيب معيّن (الاستشاري له سعر أعلى)
+  int priceWith(Doctor d) => d.consultant && consultantPrice != null ? _off(consultantPrice!) : finalPrice;
   bool get onOffer => discount > 0;
   String get oldPriceText => '${fmtNum(price)} $riyalSign';
 
@@ -65,8 +81,8 @@ class Service {
   final Color tint;
 
   /// صورة الخدمة كاملة (صفحة الخدمة) ومربعة مقصوصة على الوسط (القوائم)
-  String get photo => 'assets/services/$id.jpg';
-  String get thumb => 'assets/services/${id}_thumb.jpg';
+  String get photo => 'assets/services/${photoId ?? id}.jpg';
+  String get thumb => 'assets/services/${photoId ?? id}_thumb.jpg';
 
   /// null = متوفرة في جميع الفروع
   final List<String>? branchIds;
@@ -92,9 +108,21 @@ const _peach = Color(0xFFFFE3D3);
 
 const services = [
   Service(
+    id: 'c1',
+    name: 'كشف أسنان',
+    price: 150,
+    consultantPrice: 250,
+    rating: 4.8,
+    reviews: 186,
+    tint: _sky,
+    kashf: true,
+    photoId: 's4',
+  ),
+  Service(
     id: 's1',
     name: 'تنظيف الأسنان',
     price: 200,
+    consultantPrice: 250,
     rating: 4.8,
     reviews: 124,
     tint: _sky,
@@ -103,6 +131,7 @@ const services = [
     id: 's2',
     name: 'تبييض الأسنان',
     price: 900,
+    consultantPrice: 1100,
     rating: 4.7,
     reviews: 88,
     tint: _accent,
@@ -112,6 +141,7 @@ const services = [
     id: 's4',
     name: 'فحص شامل للأسنان',
     price: 150,
+    consultantPrice: 200,
     rating: 4.8,
     reviews: 210,
     tint: _peach,
@@ -119,12 +149,23 @@ const services = [
   ),
   Service(
     id: 's5',
-    name: 'استشارة تقويم',
+    name: 'كشف تقويم',
     price: 300,
     rating: 4.9,
     reviews: 97,
     tint: _accent,
     branchIds: ['rawdah'],
+    kashf: true,
+  ),
+  Service(
+    id: 'c3',
+    name: 'كشف جلدية',
+    price: 200,
+    rating: 4.7,
+    reviews: 118,
+    tint: _peach,
+    kashf: true,
+    photoId: 's6',
   ),
   Service(
     id: 's6',
@@ -134,6 +175,17 @@ const services = [
     reviews: 73,
     tint: _peach,
     branchIds: ['salamah', 'hamdaniyah'],
+  ),
+  Service(
+    id: 'c4',
+    name: 'كشف ليزر',
+    price: 150,
+    rating: 4.8,
+    reviews: 52,
+    tint: _sky,
+    branchIds: ['salamah', 'hamdaniyah'],
+    kashf: true,
+    photoId: 's7',
   ),
   Service(
     id: 's7',
@@ -211,10 +263,13 @@ String agoText(int d) {
 
 /// نبذة كل خدمة (نص تجريبي)
 const serviceAbout = {
+  'c1': 'كشف عند طبيب الأسنان: فحص الأسنان واللثة، وتشخيص الحالة، وخطة علاج واضحة بالخطوات والتكلفة',
+  'c3': 'كشف عند طبيب الجلدية: تقييم البشرة أو الشعر وتشخيص المشكلة، وخطة علاج مناسبة لحالتك',
+  'c4': 'كشف قبل جلسات الليزر: تقييم نوع البشرة والشعر، وتحديد الجهاز وعدد الجلسات المناسبة',
   's1': 'تنظيف عميق للأسنان وإزالة الجير والتصبغات السطحية باستخدام أجهزة الموجات فوق الصوتية، مع تلميع نهائي ونصائح للعناية اليومية. ينصح فيه كل 6 أشهر للحفاظ على صحة اللثة',
   's2': 'تبييض احترافي في العيادة بجلسة وحدة تقريباً ساعة، بمواد آمنة على المينا تحت إشراف الطبيب. النتيجة تختلف حسب لون الأسنان الأساسي، ويعطيك الطبيب تعليمات للحفاظ على النتيجة',
   's4': 'فحص كامل للفم والأسنان واللثة مع أشعة عند الحاجة، ويطلع لك تقرير واضح بالحالة وخطة علاج مقترحة بالأولويات والتكلفة',
-  's5': 'جلسة استشارة مع استشاري التقويم: تقييم الإطباق والفكين، وشرح خيارات التقويم المناسبة (الشفاف أو التقليدي) والمدة المتوقعة والتكلفة',
+  's5': 'كشف عند استشاري التقويم: تقييم الإطباق والفكين، وشرح خيارات التقويم المناسبة (الشفاف أو التقليدي) والمدة المتوقعة والتكلفة',
   's6': 'تنظيف بشرة عميق يشمل التقشير وإزالة الرؤوس السوداء والترطيب، ويُختار نوع الجلسة حسب نوع بشرتك بعد تقييم سريع',
   's7': 'جلسة ليزر لإزالة الشعر بأجهزة حديثة مناسبة لأغلب أنواع البشرة، والسعر للمنطقة الوحدة. تحتاج عادة من 6 إلى 8 جلسات لنتيجة واضحة',
 };
@@ -253,6 +308,9 @@ const serviceReviews = {
 
 /// تخصص كل خدمة
 const serviceCat = {
+  'c1': 'dental',
+  'c3': 'derma',
+  'c4': 'laser',
   's1': 'dental',
   's2': 'dental',
   's4': 'dental',
@@ -286,21 +344,43 @@ const doctorBranches = {
 List<Branch> branchesOf(String doctorId) =>
     [for (final id in doctorBranches[doctorId] ?? const <String>[]) branchById(id)];
 
-/// الأطباء اللي يقدمون كل الخدمات المختارة في فرع معيّن
-List<Doctor> doctorsFor(List<Service> items, String branchId) => doctors
+/// الأطباء اللي يقدمون الخدمة في فرع معيّن
+List<Doctor> doctorsFor(Service sv, String branchId) => doctors
     .where((d) => (doctorBranches[d.id] ?? const <String>[]).contains(branchId))
-    .where((d) => items.every((x) => d.cats.contains(x.cat)))
+    .where((d) => d.cats.contains(sv.cat))
     .toList();
 
-/// الفروع اللي تتوفر فيها كل الخدمات المختارة ومعها طبيب يقدمها
-List<Branch> branchesFor(List<Service> items) => branches
-    .where((b) => items.every((x) => x.availableIn.contains(b.id)))
-    .where((b) => doctorsFor(items, b.id).isNotEmpty)
+/// الفروع اللي تتوفر فيها الخدمة ومعها طبيب يقدمها (ولو فيه طبيب محدد: الفروع اللي يداوم فيها)
+List<Branch> branchesFor(Service sv, {Doctor? doctor}) => branches
+    .where((b) => sv.availableIn.contains(b.id))
+    .where((b) => doctor == null ? doctorsFor(sv, b.id).isNotEmpty : doctorsFor(sv, b.id).any((d) => d.id == doctor.id))
     .toList();
+
+/// الخدمات اللي يقدمها الطبيب (الكشف أول)
+List<Service> servicesOf(Doctor d) => [
+      ...services.where((x) => x.kashf && d.cats.contains(x.cat) && branchesFor(x, doctor: d).isNotEmpty),
+      ...services.where((x) => !x.kashf && d.cats.contains(x.cat) && branchesFor(x, doctor: d).isNotEmpty),
+    ];
+
+/// أقل وأعلى سعر للخدمة مع الأطباء اللي يقدمونها (للطبيب المتاح)
+({int min, int max}) priceRange(Service sv, {String? branchId}) {
+  final docs = [
+    for (final b in branchesFor(sv))
+      if (branchId == null || b.id == branchId) ...doctorsFor(sv, b.id),
+  ];
+  if (docs.isEmpty) return (min: sv.finalPrice, max: sv.finalPrice);
+  final prices = docs.map(sv.priceWith).toList()..sort();
+  return (min: prices.first, max: prices.last);
+}
+
+/// نص السعر: المبلغ بالضبط، أو "يبدأ من" لو يختلف حسب الطبيب
+String priceLabel(Service sv, {Doctor? doctor, String? branchId}) {
+  if (doctor != null) return money(sv.priceWith(doctor));
+  final r = priceRange(sv, branchId: branchId);
+  return r.min == r.max ? money(r.min) : 'يبدأ من ${money(r.min)}';
+}
 
 extension BookingDetails on Booking {
   Branch get branch => branchById(branchId);
-
-  /// اسم الموعد: الخدمات المحجوزة، أو التخصص لو كانت زيارة عادية
-  String get title => serviceIds.isEmpty ? serviceName : serviceIds.map((id) => serviceById(id).name).join('، ');
+  Service get service => serviceById(serviceId);
 }

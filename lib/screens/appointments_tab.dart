@@ -1,17 +1,20 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data.dart';
+import '../extras.dart';
+import '../main.dart';
 import '../native.dart';
 import '../services_data.dart';
 import '../state.dart';
 import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'booking_screen.dart';
+import 'extras_screens.dart';
+import 'payment_screen.dart';
+import 'request_screen.dart';
 import 'shell.dart';
 import 'visit_extras.dart';
 
@@ -28,18 +31,23 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   /// المستخدم قفل تنبيه "التنبيهات مقفلة" (يرجع مع فتح التطبيق مرة ثانية)
   bool _bannerClosed = false;
 
-  /// السحب لتحت للتحديث (لما يتربط النظام يجيب المواعيد من السيرفر)
+  /// السحب لتحت للتحديث (لما يتربط النظام يجيب الطلبات والمواعيد من السيرفر)
   Future<void> _refresh() async {
     HapticFeedback.mediumImpact();
     await Future<void>.delayed(const Duration(milliseconds: 800));
   }
 
+  bool _show(Booking b) => switch (_filter) {
+        'requests' => b.status == RequestStatus.sent || b.status == RequestStatus.approved,
+        'upcoming' => b.status == RequestStatus.scheduled,
+        'past' => b.past,
+        _ => true,
+      };
+
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
-    final list = s.sorted
-        .where((b) => _filter == 'all' || (_filter == 'upcoming' ? !b.completed : b.completed))
-        .toList();
+    final list = s.sorted.where(_show).toList();
 
     // العنوان الكبير يتعامل مع الساعة فوق، والـ SafeArea للأطراف بس
     return SafeArea(
@@ -50,7 +58,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
         onRefresh: _refresh,
         bottomSpace: navBottomSpace,
         children: [
-          // التنبيهات مقفلة: يطلع بس لو عنده موعد قادم
+          // التنبيهات مقفلة: يطلع بس لو عنده موعد محدد
           ValueListenableBuilder<bool>(
             valueListenable: Reminders.blocked,
             builder: (context, blocked, _) => blocked && !_bannerClosed && s.upcoming.isNotEmpty
@@ -63,7 +71,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           HScroll(
             height: 60,
             children: [
-              for (final f in const [('all', 'الكل'), ('upcoming', 'القادمة'), ('completed', 'المكتملة')])
+              for (final f in const [('all', 'الكل'), ('requests', 'الطلبات'), ('upcoming', 'القادمة'), ('past', 'السابقة')])
                 FilterPill(
                   label: f.$2,
                   selected: _filter == f.$1,
@@ -72,27 +80,20 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
             ],
           ),
           // كيف كانت زيارتك؟ (آخر زيارة مكتملة ما تقيّمت)
-          if (_filter != 'upcoming' && s.toRate != null)
+          if ((_filter == 'all' || _filter == 'past') && s.toRate != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
               child: RatePrompt(booking: s.toRate!),
             ),
-          // اللي دفعها لشخص ثاني: تنتظر العيادة تحدد الموعد
-          if (_filter != 'completed')
-            for (final o in s.forOthers)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                child: OtherPersonCard(order: o),
-              ),
-          if (list.isEmpty && (_filter == 'completed' || s.forOthers.isEmpty))
+          if (list.isEmpty)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
               child: StatusCard(
                 icon: CupertinoIcons.calendar,
                 iconBg: AppColors.accent,
-                title: 'ما عندك موعد',
+                title: 'ما عندك مواعيد',
                 actions: [
-                  PillButton(label: 'احجز موعد', height: 50, fontSize: 17, onTap: () => s.openDoctors()),
+                  PillButton(label: 'اطلب موعد', height: 50, fontSize: 17, onTap: () => s.openDoctors()),
                   const SizedBox(height: 6),
                   PillButton(
                     label: 'تصفح الخدمات',
@@ -108,31 +109,7 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
           for (final b in list)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-              child: b.completed || b.cancelledByClinic
-                  ? _AppointmentCard(booking: b)
-                  // اسحب البطاقة: تعديل أو إلغاء (مثل البريد والرسائل)
-                  : Slidable(
-                      key: ValueKey(b.id),
-                      endActionPane: ActionPane(
-                        motion: const DrawerMotion(),
-                        extentRatio: 0.46,
-                        children: [
-                          _SwipeAction(
-                            label: 'تعديل',
-                            icon: CupertinoIcons.calendar,
-                            color: const Color(0xFF8E8E93),
-                            onTap: () => openBooking(context, b.doctor, cat: b.cat, editing: b),
-                          ),
-                          _SwipeAction(
-                            label: 'إلغاء',
-                            icon: CupertinoIcons.trash,
-                            color: AppColors.red,
-                            onTap: () => confirmCancelBooking(context, b),
-                          ),
-                        ],
-                      ),
-                      child: _AppointmentCard(booking: b),
-                    ),
+              child: RequestCard(booking: b),
             ),
         ],
       ),
@@ -140,190 +117,270 @@ class _AppointmentsTabState extends State<AppointmentsTab> {
   }
 }
 
-/// زر يطلع لما تسحب بطاقة الموعد
-class _SwipeAction extends StatelessWidget {
-  const _SwipeAction({required this.label, required this.icon, required this.color, required this.onTap});
+/// "يوم"، "يومين"، "5 أيام"، "12 يوم"
+String daysText(int n) => n == 1
+    ? 'يوم'
+    : n == 2
+        ? 'يومين'
+        : n <= 10
+            ? '${fmtNum(n)} أيام'
+            : '${fmtNum(n)} يوم';
 
-  final String label;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+/// شارة حالة الطلب: النص، الخلفية، ولون النص
+(String, Color, Color) requestBadge(Booking b) => switch (b.status) {
+      RequestStatus.sent => ('تم إرسال الطلب', const Color(0xFFFFF4D6), const Color(0xFF8A5A00)),
+      RequestStatus.approved => ('وافقت العيادة', const Color(0xFFE3F5E9), AppColors.green),
+      RequestStatus.scheduled => ('تم تحديد الموعد', const Color(0xFFE6EDFD), AppColors.blue),
+      RequestStatus.completed => (b.isPackage ? 'تم تفعيل الباقة' : 'مكتملة', const Color(0xFFE3F5E9), AppColors.green),
+      RequestStatus.noShow => ('لم تحضر', AppColors.closed, AppColors.ink),
+      RequestStatus.cancelled => (b.cancelledByClinic ? 'ألغته العيادة' : 'ملغي', const Color(0xFFFBE3E1), AppColors.red),
+    };
 
-  @override
-  Widget build(BuildContext context) => CustomSlidableAction(
-        onPressed: (_) => onTap(),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 3),
-        child: Container(
-          decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(40)),
-          alignment: Alignment.center,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 24, color: AppColors.white),
-              const SizedBox(height: 6),
-              Text(label, style: ts(15, weight: FontWeight.w500, color: AppColors.white)),
-            ],
-          ),
-        ),
-      );
-}
-
-class _AppointmentCard extends StatelessWidget {
-  const _AppointmentCard({required this.booking});
+/// بطاقة طلب أو موعد في "مواعيدي" (تتغير حسب الحالة)
+class RequestCard extends StatelessWidget {
+  const RequestCard({super.key, required this.booking});
 
   final Booking booking;
+
+  Widget _box(Widget child, {Color color = AppColors.bg}) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(22)),
+        child: child,
+      );
+
+  /// يوم الموعد ووقته والفرع
+  Widget _whenBox(DateTime at) => _box(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(fmtDay(at), style: ts(22, color: AppColors.blue)),
+          Text(fmtClock(at), style: ts(17, weight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text(booking.branch.name, style: ts(15, weight: FontWeight.w600)),
+        ],
+      ));
+
+  Future<void> _calendar(BuildContext context) async {
+    final ok = await addBookingToCalendar(booking);
+    if (!ok && context.mounted) await showCalendarBlockedSheet(context);
+  }
+
+  void _again(BuildContext context) {
+    final b = booking;
+    openRequest(context, service: b.service, package: b.status == RequestStatus.cancelled ? b.package : null);
+  }
 
   @override
   Widget build(BuildContext context) {
     final b = booking;
-    final d = b.doctor;
-    if (b.cancelledByClinic) return _CancelledCard(booking: b);
     final s = AppScope.of(context);
-    final stars = s.ratings[b.id];
-    Widget bottom;
-    if (b.completed) {
-      bottom = Row(
-        children: [
-          Expanded(
-            child: PillButton(
-              label: 'احجز مرة ثانية',
-              onTap: () => openBooking(context, d, cat: b.cat, day: firstOpenDay()),
-            ),
-          ),
-          if (stars != null) ...[const SizedBox(width: 10), RatedStars(stars: stars)],
-        ],
-      );
-    } else if (b.dayIndex == 0 && s.checkedIn.contains(b.id)) {
-      // سجّل وصوله: دوره والتواصل مع الاستقبال
-      bottom = const CheckedInBox();
-    } else {
-      final row = Row(
-        children: [
-          // الاتجاهات للفرع (قوقل ماب)
-          CircleButton(
-            icon: CupertinoIcons.location_fill,
-            size: 44,
-            bg: AppColors.ink,
-            fg: AppColors.white,
-            semanticLabel: 'الاتجاهات إلى ${b.branch.name}',
-            onTap: () => launchUrl(b.branch.mapsUri, mode: LaunchMode.externalApplication),
-          ),
-          const SizedBox(width: 6),
-          Expanded(child: PillButton(label: 'إعادة جدولة', onTap: () => openBooking(context, d, cat: b.cat, editing: b))),
-          const SizedBox(width: 6),
-          PillButton(
-            label: 'إلغاء',
-            bg: AppColors.bg,
-            fg: AppColors.red,
-            fontSize: 16,
-            padding: 22,
-            onTap: () => confirmCancelBooking(context, b),
-          ),
-        ],
-      );
-      // يوم الموعد: زر "وصلت" يبلغ الاستقبال
-      bottom = b.dayIndex == 0
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                PillButton(
-                  label: 'وصلت',
-                  icon: CupertinoIcons.location_solid,
-                  onTap: () {
-                    HapticFeedback.mediumImpact();
-                    s.checkIn(b.id);
-                  },
-                ),
-                const SizedBox(height: 8),
-                row,
-              ],
-            )
-          : row;
+    final (label, badgeBg, badgeFg) = requestBadge(b);
+    final at = b.at;
+    final scheduled = b.status == RequestStatus.scheduled && at != null;
+    final payable = !b.free && !b.paid && (scheduled || b.status == RequestStatus.approved);
+
+    // سطر المبلغ: مدفوع، أو الدفع في الفرع، أو المبلغ
+    String? payText;
+    if (!b.free && (b.active || (b.isPackage && b.status == RequestStatus.completed))) {
+      payText = b.paid
+          ? 'مدفوع · ${money(s.orderFor(b)?.total ?? b.price)}'
+          : b.payLater
+              ? 'الدفع في الفرع · ${b.priceText}'
+              : b.priceText;
+    } else if (b.free && b.active) {
+      payText = b.priceText;
     }
 
-    return CutCard(
-      image: d.image,
-      imageHeight: 276,
-      bottom: bottom,
-      children: [
-        Text('${d.n1}\n${d.n2}', style: ts(32, height: 1.2)),
-        const SizedBox(height: 4),
-        Text(d.role, style: ts(15, color: AppColors.body)),
-        const SizedBox(height: 12),
-        Text(b.completed ? 'مكتمل' : 'قادم', style: ts(28, color: b.completed ? AppColors.green : AppColors.blue)),
-        Text(b.title, style: ts(15)),
-        Text(b.day.full, style: ts(15, weight: FontWeight.w500)),
-        Text(b.range, style: ts(15)),
-        const SizedBox(height: 4),
-        Text(b.branch.name, style: ts(15, weight: FontWeight.w600)),
-      ],
+    final cancel = PillButton(
+      label: scheduled ? 'إلغاء الموعد' : 'إلغاء الطلب',
+      height: 50,
+      fontSize: 16,
+      bg: AppColors.bg,
+      fg: AppColors.red,
+      onTap: () => confirmCancelBooking(context, b),
     );
-  }
-}
 
-/// موعد ألغته العيادة: شارة واضحة، السبب، وطريقة الحجز من جديد
-class _CancelledCard extends StatelessWidget {
-  const _CancelledCard({required this.booking});
-
-  final Booking booking;
-
-  @override
-  Widget build(BuildContext context) {
-    final b = booking;
-    final d = b.doctor;
-    final s = AppScope.of(context);
-    final paid = s.orderFor(b)?.paidOnline ?? false;
-    return CutCard(
-      image: d.image,
-      imageHeight: 236,
-      imageWidth: 170,
-      borderColor: const Color(0xFFF3C7C2),
-      bottom: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(20)),
-            child: Text(
-              paid ? '${b.clinicCancelReason}، والمبلغ يرجع لك كامل' : b.clinicCancelReason!,
-              style: ts(14, color: AppColors.body, height: 1.6),
+    final actions = <Widget>[
+      // الدفع: بعد ما تحدد العيادة الموعد (أو توافق على الباقة)
+      if (payable)
+        Row(
+          children: [
+            Expanded(
+              child: PillButton(
+                label: 'ادفع الحين',
+                height: 50,
+                fontSize: 16,
+                onTap: () => Navigator.of(context).push(iosRoute(PaymentScreen(request: b))),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
+            if (!b.payLater) ...[
+              const SizedBox(width: 6),
+              Expanded(
+                child: PillButton(
+                  label: 'ادفع لاحقاً',
+                  height: 50,
+                  fontSize: 16,
+                  bg: AppColors.bg,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    s.payLater(b.id);
+                  },
+                ),
+              ),
+            ],
+          ],
+        ),
+      if (scheduled)
+        Row(
+          children: [
+            // الاتجاهات للفرع (قوقل ماب)
+            CircleButton(
+              icon: CupertinoIcons.location_fill,
+              size: 50,
+              bg: AppColors.ink,
+              fg: AppColors.white,
+              semanticLabel: 'الاتجاهات إلى ${b.branch.name}',
+              onTap: () => launchUrl(b.branch.mapsUri, mode: LaunchMode.externalApplication),
+            ),
+            const SizedBox(width: 6),
+            CircleButton(
+              icon: CupertinoIcons.calendar_badge_plus,
+              size: 50,
+              bg: AppColors.bg,
+              semanticLabel: 'أضف إلى التقويم',
+              onTap: () => _calendar(context),
+            ),
+            const SizedBox(width: 6),
+            Expanded(child: cancel),
+          ],
+        )
+      else if (b.active)
+        cancel,
+      if (b.status == RequestStatus.completed && b.isPackage)
+        PillButton(label: 'باقاتي', height: 50, fontSize: 16, onTap: () => Navigator.of(context).push(iosRoute(const PackagesScreen()))),
+      if (b.status == RequestStatus.completed && !b.isPackage) ...[
+        // رتوش جلسة الليزر خلال المدة
+        if (s.touchUpDaysLeft(b) case final left?)
           PillButton(
-            label: 'احجز موعد جديد مع ${d.n1}',
+            label: 'اطلب الرتوش · باقي ${daysText(left)}',
             height: 50,
             fontSize: 16,
-            onTap: () => openBooking(context, d, cat: b.cat),
+            onTap: () => requestTouchUp(context, b),
           ),
-          PillButton(
-            label: 'اختر طبيب ثاني',
-            height: 50,
-            fontSize: 15,
-            weight: FontWeight.w400,
-            bg: Colors.transparent,
-            onTap: () => s.openDoctors(b.cat),
-          ),
-        ],
-      ),
-      children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-          decoration: BoxDecoration(color: const Color(0xFFFBE3E1), borderRadius: BorderRadius.circular(999)),
-          child: Text('ألغته العيادة', style: ts(13, weight: FontWeight.w600, color: AppColors.red)),
-        ),
-        const SizedBox(height: 12),
-        Text('${d.n1}\n${d.n2}', style: ts(30, height: 1.2)),
-        const SizedBox(height: 4),
-        Text('${b.title} · ${b.branch.name}', style: ts(15, color: AppColors.body)),
-        const SizedBox(height: 10),
-        Text(
-          '${b.day.full} · ${fmtTime(b.time)}',
-          style: ts(18, color: AppColors.closedText, decoration: TextDecoration.lineThrough),
+        Row(
+          children: [
+            Expanded(
+              child: PillButton(label: 'اطلب مرة ثانية', height: 50, fontSize: 16, bg: AppColors.bg, onTap: () => _again(context)),
+            ),
+            const SizedBox(width: 10),
+            if (s.ratings[b.id] case final stars?)
+              RatedStars(stars: stars)
+            else
+              PillButton(
+                label: 'قيّم',
+                height: 50,
+                fontSize: 16,
+                padding: 22,
+                bg: AppColors.ink,
+                fg: AppColors.white,
+                onTap: () => showRatingSheet(context, b),
+              ),
+          ],
         ),
       ],
+      if (b.status == RequestStatus.noShow || b.status == RequestStatus.cancelled)
+        PillButton(label: 'اطلب مرة ثانية', height: 50, fontSize: 16, bg: AppColors.bg, onTap: () => _again(context)),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(40),
+        boxShadow: cardShadow,
+        border: highContrast(context) ? Border.all(color: AppColors.ink, width: 1.5) : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(color: badgeBg, borderRadius: BorderRadius.circular(999)),
+                child: Text(label, style: ts(13, weight: FontWeight.w600, color: badgeFg)),
+              ),
+              const Spacer(),
+              Text('#${b.number}', style: ts(13, color: AppColors.faint)),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              RequestAvatar(booking: b),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(b.title, style: ts(20, height: 1.3)),
+                    Text(b.doctor?.name ?? 'الطبيب المتاح', style: ts(14, color: AppColors.body)),
+                    if (b.forOther) Text('لـ ${b.recipientName}', style: ts(14, weight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          if (scheduled)
+            _whenBox(at!)
+          else if (b.status == RequestStatus.sent)
+            _box(
+              Row(
+                children: [
+                  const Icon(CupertinoIcons.clock, size: 22, color: Color(0xFF8A5A00)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'تم إرسال طلبك بنجاح إلى العيادة، سيتم التواصل معك',
+                      style: ts(15, weight: FontWeight.w500, color: const Color(0xFF8A5A00), height: 1.5),
+                    ),
+                  ),
+                ],
+              ),
+              color: const Color(0xFFFFF4D6),
+            )
+          else
+            Text(
+              at != null && !b.isPackage ? '${fmtWhen(at)} · ${b.branch.name}' : '${b.branch.name} · ${b.period.label}',
+              style: ts(15, color: b.status == RequestStatus.cancelled ? AppColors.closedText : AppColors.ink,
+                  decoration: b.status == RequestStatus.cancelled && at != null ? TextDecoration.lineThrough : null),
+            ),
+          if (b.status == RequestStatus.sent) ...[
+            const SizedBox(height: 10),
+            Text('${b.branch.name} · ${b.period.label}', style: ts(15)),
+          ],
+          // سبب إلغاء العيادة (والمبلغ يرجع كامل لو مدفوع)
+          if (b.cancelledByClinic) ...[
+            const SizedBox(height: 10),
+            _box(Text(
+              b.paid ? '${b.clinicCancelReason}، والمبلغ يرجع لك كامل' : b.clinicCancelReason!,
+              style: ts(14, color: AppColors.body, height: 1.6),
+            )),
+          ],
+          if (payText != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(b.paid ? Icons.check_rounded : CupertinoIcons.creditcard, size: 18, color: b.paid ? AppColors.green : AppColors.faint),
+                const SizedBox(width: 6),
+                Expanded(child: Text(payText, style: ts(15, weight: FontWeight.w500))),
+              ],
+            ),
+          ],
+          for (final a in actions) ...[const SizedBox(height: 12), a],
+        ],
+      ),
     );
   }
 }
