@@ -438,9 +438,11 @@ class FloatingBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final inset = safeTop(context);
-    // التلاشي يغطي الساعة والأزرار ثم يخف تدريجياً بدون حد واضح
-    final fadeHeight = inset + belowBar + 34;
+    // التلاشي يغطي الساعة، ويخف على سطر الأزرار، ويخلص تحتها مباشرة
+    // (المحتوى تحت الأزرار يبقى واضح، والتلاشي بس للي يمر تحتها وأنت تنزل)
+    final fadeHeight = inset + belowBar + 6;
     final solid = (inset + top) / fadeHeight;
+    final mid = (inset + top + GlassCircle.barSize / 2) / fadeHeight;
     final bar = (inset + belowBar) / fadeHeight;
     return Stack(
       children: [
@@ -456,12 +458,11 @@ class FloatingBar extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  stops: [0, solid, bar, bar + (1 - bar) * 0.4, bar + (1 - bar) * 0.75, 1],
+                  stops: [0, solid, mid, bar, 1],
                   colors: [
                     AppColors.bg.withAlpha(250),
                     AppColors.bg.withAlpha(235),
-                    AppColors.bg.withAlpha(190),
-                    AppColors.bg.withAlpha(110),
+                    AppColors.bg.withAlpha(150),
                     AppColors.bg.withAlpha(40),
                     AppColors.bg.withAlpha(0),
                   ],
