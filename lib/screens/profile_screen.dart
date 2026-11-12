@@ -90,15 +90,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: EdgeInsets.fromLTRB(14, FloatingBar.safeTop(context) + FloatingBar.contentTop, 14, 20),
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     children: [
-                      if (!widget.editing)
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(6, 10, 6, 0),
-                          child: Text(
-                            'اكتب اسمك عشان نفتح ملفك في العيادة',
-                            style: ts(15, color: AppColors.body, height: 1.7),
-                          ),
-                        ),
-
                       // الاسم
                       _label('الاسم الكامل'),
                       TextField(
