@@ -1,3 +1,4 @@
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -62,6 +63,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
       Navigator.of(context).pop();
     } else {
       finishLogin(context, inside: widget.inside);
+    }
+  }
+
+  void _logout() {
+    AppScope.read(context).logout();
+    Navigator.of(context).popUntil((r) => r.isFirst);
+  }
+
+  Future<void> _deleteAccount() async {
+    final s = AppScope.read(context);
+    // تنبيه آبل الأصلي (iOS 26)
+    final result = await CNAlert.show<String>(
+      context: context,
+      title: 'حذف الحساب؟',
+      message: 'بيتم حذف بياناتك ومواعيدك من التطبيق نهائياً، وما تقدر تتراجع',
+      actions: const [
+        CNAlertAction(label: 'إلغاء', isCancel: true),
+        CNAlertAction(label: 'حذف', value: 'delete', isDestructive: true),
+      ],
+    );
+    if (result?.value == 'delete' && mounted) {
+      s.deleteAccount();
+      Navigator.of(context).popUntil((r) => r.isFirst);
     }
   }
 
@@ -139,11 +163,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               BottomAction(
-                child: PillButton(
-                  label: 'حفظ',
-                  height: 50,
-                  enabled: _valid,
-                  onTap: _submit,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    PillButton(
+                      label: 'حفظ',
+                      height: 50,
+                      enabled: _valid,
+                      onTap: _submit,
+                    ),
+                    // من "حسابي" بس: تسجيل الخروج وحذف الحساب تحت زر الحفظ
+                    if (widget.editing) ...[
+                      const SizedBox(height: 10),
+                      PillButton(label: 'تسجيل الخروج', bg: AppColors.white, fontSize: 17, onTap: _logout),
+                      const SizedBox(height: 4),
+                      PillButton(label: 'حذف الحساب', bg: Colors.transparent, fg: AppColors.red, fontSize: 16, onTap: _deleteAccount),
+                    ],
+                  ],
                 ),
               ),
             ],
