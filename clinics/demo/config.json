@@ -1,0 +1,15 @@
+{
+  "CLINIC_ID": "demo",
+  "CLINIC_APP_NAME": "عيادتي",
+  "CLINIC_NAME_EN": "Eyadati",
+  "CLINIC_PHONE": "+966000000000",
+  "CLINIC_WHATSAPP": "+966000000000",
+  "CLINIC_SHARE_LINK": "https://apps.apple.com/",
+  "CLINIC_STORE_URL": "https://apps.apple.com/",
+  "CLINIC_MONOGRAM": "ع",
+  "CLINIC_ACCENT": "0xFFE3FF3A",
+  "CLINIC_ON_ACCENT": "0xFF000000",
+  "CLINIC_IOS_BUNDLE_ID": "com.clinicsapp.clinicsApp",
+  "CLINIC_ANDROID_APP_ID": "com.clinicsapp.clinics_app",
+  "CLINIC_SPLASH_COLOR": "0xFFFFFFFF"
+}

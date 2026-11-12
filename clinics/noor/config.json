@@ -1,0 +1,15 @@
+{
+  "CLINIC_ID": "noor",
+  "CLINIC_APP_NAME": "عيادة نور",
+  "CLINIC_NAME_EN": "Noor Clinic",
+  "CLINIC_PHONE": "+966000000001",
+  "CLINIC_WHATSAPP": "+966000000002",
+  "CLINIC_SHARE_LINK": "https://example.com/noor-clinic",
+  "CLINIC_STORE_URL": "https://example.com/noor-clinic/app",
+  "CLINIC_MONOGRAM": "ن",
+  "CLINIC_ACCENT": "0xFF2563EB",
+  "CLINIC_ON_ACCENT": "0xFFFFFFFF",
+  "CLINIC_IOS_BUNDLE_ID": "com.clinicsapp.noorClinic",
+  "CLINIC_ANDROID_APP_ID": "com.clinicsapp.noor_clinic",
+  "CLINIC_SPLASH_COLOR": "0xFF2563EB"
+}

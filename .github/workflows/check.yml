@@ -1,0 +1,72 @@
+# يفحص الكود تلقائياً مع كل رفع: أخطاء البناء والتحذيرات، والاختبارات
+name: فحص الكود
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter --version
+      - run: flutter pub get
+
+      - name: تحليل الكود
+        run: |
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.txt 2>&1 || true
+          cat analyze.txt
+          # كل ملاحظة تطلع كتنبيه على السطر نفسه في GitHub
+          grep -E '^ *(error|warning|info) • ' analyze.txt | awk -F ' • ' '{
+            sev=$1; gsub(/ /,"",sev); msg=$2; loc=$3; code=$4;
+            split(loc,a,":"); printf "%s|%s|%s|%s|%s\n", sev, a[1], a[2], a[3], msg " (" code ")"
+          }' > raw.txt
+          # الأخطاء أول، بعدها التحذيرات، بعدها الملاحظات
+          { grep '^error|' raw.txt; grep '^warning|' raw.txt; grep '^info|' raw.txt; } > issues.txt || true
+          echo "issues: $(wc -l < issues.txt)"
+          if grep -q '^error|' issues.txt; then echo "has_errors=1" >> "$GITHUB_ENV"; fi
+
+      - name: عرض الملاحظات 1
+        run: |
+          sed -n '1,30p' issues.txt | awk -F '|' '{ t = (NR % 3 == 1) ? "warning" : (NR % 3 == 2) ? "notice" : "error"; printf "::%s file=%s,line=%s,col=%s::[%s] %s\n", t, $2, $3, $4, $1, $5 }'
+      - name: عرض الملاحظات 2
+        run: |
+          sed -n '31,60p' issues.txt | awk -F '|' '{ t = (NR % 3 == 1) ? "warning" : (NR % 3 == 2) ? "notice" : "error"; printf "::%s file=%s,line=%s,col=%s::[%s] %s\n", t, $2, $3, $4, $1, $5 }'
+      - name: عرض الملاحظات 3
+        run: |
+          sed -n '61,90p' issues.txt | awk -F '|' '{ t = (NR % 3 == 1) ? "warning" : (NR % 3 == 2) ? "notice" : "error"; printf "::%s file=%s,line=%s,col=%s::[%s] %s\n", t, $2, $3, $4, $1, $5 }'
+      - name: عرض الملاحظات 4
+        run: |
+          sed -n '91,120p' issues.txt | awk -F '|' '{ t = (NR % 3 == 1) ? "warning" : (NR % 3 == 2) ? "notice" : "error"; printf "::%s file=%s,line=%s,col=%s::[%s] %s\n", t, $2, $3, $4, $1, $5 }'
+
+      # بملف عيادة demo، مثل ما ينبني التطبيق
+      - name: الاختبارات
+        run: flutter test --dart-define-from-file=clinics/demo/config.json --dart-define=EXPECT_CLINIC_FILE=true
+
+      # التشغيل المعتاد بدون ملف: التطبيق ياخذ إعدادات demo
+      - name: إعدادات العيادة بدون ملف
+        run: flutter test test/clinic_config_test.dart test/clinic_identity_test.dart test/clinic_colors_test.dart
+
+      # عيادة ثانية للاختبار (أزرق مع أبيض): تغيير ملف الإعدادات بس (بدون الكود) يغيّر هوية العيادة وألوانها
+      - name: هوية وألوان عيادة ثانية من ملف إعداداتها
+        run: |
+          flutter test test/clinic_identity_test.dart test/clinic_colors_test.dart \
+            --dart-define-from-file=test/fixtures/clinic_test.json \
+            --dart-define=CLINIC_FIXTURE=test/fixtures/clinic_test.json
+
+      # عيادة نور: هويتها وألوانها (الأزرق مع الأبيض) ووضوح النصوص، وما فيها أثر لعيادتي
+      - name: هوية وألوان عيادة نور
+        run: |
+          flutter test test/clinic_identity_test.dart test/clinic_colors_test.dart \
+            --dart-define-from-file=clinics/noor/config.json \
+            --dart-define=CLINIC_FIXTURE=clinics/noor/config.json
+
+      - name: نتيجة التحليل
+        run: test -z "$has_errors"

@@ -1,0 +1,15 @@
+{
+  "CLINIC_ID": "test",
+  "CLINIC_APP_NAME": "عيادة الاختبار",
+  "CLINIC_NAME_EN": "Test Clinic",
+  "CLINIC_PHONE": "+966511111111",
+  "CLINIC_WHATSAPP": "+966522222222",
+  "CLINIC_SHARE_LINK": "https://example.com/clinic-test",
+  "CLINIC_STORE_URL": "https://apps.apple.com/app/id000000000",
+  "CLINIC_MONOGRAM": "ت",
+  "CLINIC_ACCENT": "0xFF1F4FD8",
+  "CLINIC_ON_ACCENT": "0xFFFFFFFF",
+  "CLINIC_IOS_BUNDLE_ID": "com.clinicsapp.cliniktest",
+  "CLINIC_ANDROID_APP_ID": "com.clinicsapp.cliniktest",
+  "CLINIC_SPLASH_COLOR": "0xFF1F4FD8"
+}

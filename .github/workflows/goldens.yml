@@ -1,0 +1,80 @@
+# صور الشاشات المرجعية: تتأكد إن التعديلات ما غيّرت التصميم بدون قصد
+#
+# - مع كل رفع: يقارن الشاشات بالصور المرجعية (فرق أقل من 0.5% مقبول)
+#   ولو فيه فرق حقيقي يفشل ويرفع صور الفرق (failures) تنزّلها من صفحة التشغيل.
+# - أول مرة (ما فيه صور مرجعية) أو لو رسالة الـ commit فيها [update-goldens]:
+#   يولّد الصور ويحفظها في المشروع (على أي فرع غير main).
+# - الشاشات تنرسم بإعدادات عيادة demo (clinics/demo/config.json).
+# - ساعة جهاز الاختبار تتثبت على الأحد 8 نوفمبر 2026 عشان التواريخ في الشاشات ما تتغير يومياً.
+name: صور الشاشات المرجعية
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  goldens:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: توليد أو مقارنة
+        run: |
+          MODE=compare
+          if [ ! -d test_goldens/goldens ] || echo "${{ github.event.head_commit.message }}" | grep -q '\[update-goldens\]'; then
+            MODE=update
+          fi
+          echo "MODE=$MODE" >> "$GITHUB_ENV"
+          FLAGS=""
+          if [ "$MODE" = update ]; then
+            if [ "${{ github.ref_name }}" = main ]; then echo "التوليد ما يصير على main"; exit 1; fi
+            FLAGS="--update-goldens"
+          fi
+          set -o pipefail
+          # نثبّت ساعة الجهاز على تاريخ الصور المرجعية (أداة faketime تعلّق اختبارات فلاتر)،
+          # وبعد الاختبار نرجّعها للوقت الحقيقي
+          REAL=$(date -u +%s); START=$SECONDS
+          sudo timedatectl set-ntp false || true
+          sudo systemctl stop systemd-timesyncd chrony 2>/dev/null || true
+          sudo date -s "2026-11-08 12:00:00" >/dev/null
+          STATUS=0
+          timeout 600 flutter test test_goldens --dart-define-from-file=clinics/demo/config.json $FLAGS --timeout 120s -r expanded 2>&1 | tee golden_run.log || STATUS=$?
+          sudo date -u -s "@$((REAL + SECONDS - START))" >/dev/null
+          exit $STATUS
+
+      - name: حفظ الصور المرجعية في المشروع
+        if: env.MODE == 'update' && success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add test_goldens/goldens
+          git commit -m "صور الشاشات المرجعية" || echo "ما فيه تغيير"
+          git push
+
+      # لو فشل على فرع تجربة: نحفظ سجل التشغيل في الفرع عشان نعرف السبب
+      - name: حفظ سجل الفشل
+        if: failure() && github.ref_name != 'main'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p test_goldens/ci && tail -c 60000 golden_run.log > test_goldens/ci/last_failure.log || true
+          git add test_goldens/ci && git commit -m "سجل فشل الصور المرجعية" && git push || true
+
+      - name: رفع صور الفرق
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-failures
+          path: test_goldens/failures/
+          if-no-files-found: ignore

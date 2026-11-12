@@ -1,0 +1,279 @@
+/// البيانات الثابتة وأدوات التنسيق
+library;
+
+const _arDigits = '٠١٢٣٤٥٦٧٨٩';
+
+/// رمز الريال السعودي (يطلع من خط SaudiRiyal المدمج، على يسار الرقم)
+const riyalSign = '\u20C1';
+
+/// تنسيق الأرقام للعرض (التطبيق يعرض الأرقام بالإنجليزي: 0123456789)
+String fmtNum(Object value) => value.toString();
+
+/// يحوّل أي أرقام عربية يكتبها المستخدم (٠١٢…) إلى إنجليزية
+String normalizeDigits(String value) => value.replaceAllMapped(
+      RegExp('[٠-٩]'),
+      (m) => _arDigits.indexOf(m[0]!).toString(),
+    );
+
+const monthNames = [
+  'يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+  'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر',
+];
+
+// DateTime.weekday: 1 = الاثنين ... 7 = الأحد
+const _dayLong = {
+  1: 'الاثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس',
+  5: 'الجمعة', 6: 'السبت', 7: 'الأحد',
+};
+const _dayShort = {
+  1: 'اثنين', 2: 'ثلاثاء', 3: 'أربعاء', 4: 'خميس',
+  5: 'جمعة', 6: 'سبت', 7: 'أحد',
+};
+
+/// يوم التطبيق المرجعي (يُحسب مرة وحدة عند التشغيل)
+final DateTime appToday = () {
+  final n = DateTime.now();
+  return DateTime(n.year, n.month, n.day);
+}();
+
+class DayInfo {
+  DayInfo(this.offset) : date = DateTime(appToday.year, appToday.month, appToday.day + offset);
+
+  final int offset;
+  final DateTime date;
+
+  bool get closed => date.weekday == DateTime.friday;
+  String get label => offset == 0
+      ? 'اليوم'
+      : offset == 1
+          ? 'غداً'
+          : offset == -1
+              ? 'أمس'
+              : _dayLong[date.weekday]!;
+  String get short => offset == 0 ? 'اليوم' : _dayShort[date.weekday]!;
+  String get dayNum => fmtNum(date.day);
+  String get month => monthNames[date.month - 1];
+  String get full => '$label ${fmtNum(date.day)} $month';
+}
+
+/// الوقت بالدقائق بعد الساعة 4:00 مساءً
+String fmtTime(int minutesAfter4pm) {
+  final total = 16 * 60 + minutesAfter4pm;
+  var h = (total ~/ 60) % 12;
+  if (h == 0) h = 12;
+  final mm = (total % 60).toString().padLeft(2, '0');
+  return '${fmtNum(h)}:${fmtNum(mm)} م';
+}
+
+/// الساعة من تاريخ فعلي: "4:58 م"
+String fmtClock(DateTime t) {
+  final h = t.hour % 12 == 0 ? 12 : t.hour % 12;
+  return '${fmtNum(h)}:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'ص' : 'م'}';
+}
+
+/// مدة متبقية مختصرة: "ساعة و 20 دقيقة"، "45 دقيقة"
+String fmtRemaining(Duration d) {
+  final h = d.inHours;
+  final m = d.inMinutes % 60;
+  final hours = h == 1 ? 'ساعة' : (h == 2 ? 'ساعتين' : '${fmtNum(h)} ساعات');
+  if (h == 0) return '${fmtNum(m)} دقيقة';
+  return m == 0 ? hours : '$hours و ${fmtNum(m)} دقيقة';
+}
+
+String fmtRange(int start, int duration) => 'من ${fmtTime(start)} إلى ${fmtTime(start + duration)}';
+
+const slotTimes = [0, 30, 60, 90, 120, 150, 180, 210, 240];
+
+const categories = {
+  'dental': 'كشف وعلاج الأسنان',
+  'ortho': 'استشارة تقويم',
+  'derma': 'استشارة جلدية',
+  'laser': 'جلسة ليزر',
+};
+
+const List<({String? id, String label})> categoryFilters = [
+  (id: null, label: 'الكل'),
+  (id: 'dental', label: 'أسنان'),
+  (id: 'ortho', label: 'تقويم'),
+  (id: 'derma', label: 'جلدية'),
+  (id: 'laser', label: 'ليزر'),
+];
+
+class Doctor {
+  const Doctor({
+    required this.id,
+    required this.n1,
+    required this.n2,
+    required this.role,
+    required this.cats,
+    required this.years,
+    required this.duration,
+    required this.price,
+    required this.availableToday,
+    required this.image,
+    required this.about,
+    required this.patients,
+    required this.yearsCount,
+    required this.rating,
+    required this.reviews,
+  });
+
+  final String id;
+  final String n1;
+  final String n2;
+  final String role;
+  final List<String> cats;
+  final String years;
+  final int duration;
+  final String price;
+  final bool availableToday;
+  final String image;
+  final String about;
+
+  /// أرقام تجريبية للعرض (تُستبدل بالأرقام الحقيقية قبل النشر)
+  final int patients;
+  final int yearsCount;
+  final double rating;
+  final int reviews;
+
+  String get ratingText => rating.toStringAsFixed(1);
+
+  String get name => '$n1 $n2';
+  String get durationText => '${fmtNum(duration)} دقيقة';
+  bool get reallyToday => availableToday && !DayInfo(0).closed;
+  String get availText => reallyToday ? 'متاح اليوم' : 'متاح غداً';
+  int get nextDay => firstOpenDay(fromToday: reallyToday);
+}
+
+int firstOpenDay({bool fromToday = true}) {
+  for (var i = fromToday ? 0 : 1; i < 14; i++) {
+    if (!DayInfo(i).closed) return i;
+  }
+  return 1;
+}
+
+const doctors = [
+  Doctor(
+    id: 'd1',
+    n1: 'د. ريم',
+    n2: 'العتيبي',
+    role: 'أخصائية طب أسنان عام',
+    cats: ['dental'],
+    years: 'خبرة +8 سنوات',
+    duration: 45,
+    price: '200 $riyalSign',
+    availableToday: true,
+    image: 'assets/doctors/reem.png',
+    about:
+        'أخصائية طب أسنان عام، تهتم بالوقاية والعلاج التجميلي للأسنان مثل الحشوات التجميلية والتنظيف العميق. تحرص على شرح الخطة العلاجية بوضوح وتجربة مريحة قدر الإمكان، وتتعامل مع الأطفال والكبار',
+    patients: 640,
+    yearsCount: 8,
+    rating: 4.9,
+    reviews: 96,
+  ),
+  Doctor(
+    id: 'd2',
+    n1: 'د. فهد',
+    n2: 'الزهراني',
+    role: 'استشاري تقويم الأسنان',
+    cats: ['ortho', 'dental'],
+    years: 'خبرة +12 سنة',
+    duration: 30,
+    price: '300 $riyalSign',
+    availableToday: false,
+    image: 'assets/doctors/fahd.png',
+    about:
+        'استشاري تقويم الأسنان، متخصص في التقويم الشفاف والتقليدي وتصحيح إطباق الفك. يبدأ مع كل مريض بتقييم كامل وخطة علاج واضحة المدة والمراحل، مع متابعة دورية حتى نهاية العلاج',
+    patients: 1200,
+    yearsCount: 12,
+    rating: 4.8,
+    reviews: 210,
+  ),
+  Doctor(
+    id: 'd3',
+    n1: 'د. نورة',
+    n2: 'القحطاني',
+    role: 'أخصائية جلدية وليزر',
+    cats: ['derma', 'laser'],
+    years: 'خبرة +6 سنوات',
+    duration: 30,
+    price: '250 $riyalSign',
+    availableToday: true,
+    image: 'assets/doctors/noura.png',
+    about:
+        'أخصائية الأمراض الجلدية والتجميل، تعالج حب الشباب والتصبغات ومشاكل البشرة، وتشرف على جلسات الليزر. تهتم بوضع خطة مناسبة لنوع البشرة مع روتين عناية منزلي سهل',
+    patients: 480,
+    yearsCount: 6,
+    rating: 4.9,
+    reviews: 135,
+  ),
+  Doctor(
+    id: 'd4',
+    n1: 'د. سلطان',
+    n2: 'الغامدي',
+    role: 'أخصائي جلدية',
+    cats: ['derma'],
+    years: 'خبرة +5 سنوات',
+    duration: 20,
+    price: '200 $riyalSign',
+    availableToday: false,
+    image: 'assets/doctors/sultan.png',
+    about:
+        'أخصائي جلدية، يعالج الأكزيما والصدفية وتساقط الشعر والالتهابات الجلدية. يركز على التشخيص الدقيق والمتابعة المنتظمة لضمان أفضل نتيجة',
+    patients: 350,
+    yearsCount: 5,
+    rating: 4.7,
+    reviews: 72,
+  ),
+];
+
+Doctor doctorById(String id) => doctors.firstWhere((d) => d.id == id, orElse: () => doctors.first);
+
+/// يوم تجريبي محجوز بالكامل عند د. فهد (ثاني يوم دوام بعد اليوم) عشان تبان حالة "ما فيه أوقات"
+int get fullyBookedDemoDay => firstOpenDay(fromToday: false) + 1 + (DayInfo(firstOpenDay(fromToday: false) + 1).closed ? 1 : 0);
+
+/// هل الوقت محجوز؟ (بيانات تجريبية ثابتة لكل طبيب ويوم)
+bool slotTaken(String doctorId, int day, int index) {
+  if (doctorId == 'd2' && day == fullyBookedDemoDay) return true;
+  final seed = doctorId.codeUnitAt(1);
+  return (index * 7 + (day + 1) * 3 + seed) % 4 == 0;
+}
+
+class Booking {
+  Booking({
+    required this.id,
+    required this.doctorId,
+    required this.cat,
+    required this.dayIndex,
+    required this.time,
+    this.branchId = 'rawdah',
+    this.serviceIds = const [],
+    this.orderNumber,
+  });
+
+  final String id;
+  String doctorId;
+  String cat;
+  int dayIndex;
+  int time;
+
+  /// الفرع اللي فيه الموعد
+  String branchId;
+
+  /// الخدمات المحجوزة (فاضية = استشارة/زيارة عادية)
+  final List<String> serviceIds;
+
+  /// رقم الطلب لو الموعد مدفوع من التطبيق
+  final String? orderNumber;
+
+  /// سبب الإلغاء لو العيادة ألغت الموعد (يوصل من نظام العيادة بعد الربط)
+  String? clinicCancelReason;
+
+  bool get cancelledByClinic => clinicCancelReason != null;
+
+  Doctor get doctor => doctorById(doctorId);
+  DayInfo get day => DayInfo(dayIndex);
+  bool get completed => dayIndex < 0;
+  String get serviceName => categories[cat] ?? '';
+  String get range => fmtRange(time, doctor.duration);
+}

@@ -1,0 +1,9 @@
+// العيادة الافتراضية لبناء آيفون: عيادتي (demo)
+// لا تعدّل يدوياً: يتولد من clinics/<id>/config.json بالأمر python3 tool/clinic.py
+CLINIC_ID = demo
+CLINIC_IOS_BUNDLE_ID = com.clinicsapp.clinicsApp
+CLINIC_DISPLAY_NAME = عيادتي
+// أصول كل عيادة (الأيقونة وشاشة البداية) في clinics/<id>/ios/<id>.clinic.xcassets،
+// وما ينبني منها إلا أصول العيادة المختارة
+EXCLUDED_SOURCE_FILE_NAMES = *.clinic.xcassets
+INCLUDED_SOURCE_FILE_NAMES = $(CLINIC_ID).clinic.xcassets

@@ -1,0 +1,150 @@
+# بناء تطبيق مستقل لكل عيادة (iOS وAndroid) من ملف إعداداتها: clinics/<id>/config.json
+#
+# - عيادتي (demo) وعيادة نور (noor) تنبني بالتوازي، كل تطبيق في جهاز مستقل،
+#   وكل تطبيق ينفحص: المعرّف، الاسم تحت الأيقونة، الأيقونة، لون شاشة البداية، وما فيه أصول عيادة ثانية.
+# - وفي جهاز واحد ورا بعض: عيادتي ← نور ← عيادتي، والحماية من التداخل ونسخة الإنتاج بدون ملف.
+# البناء بدون توقيع (التوقيع على الماك فقط، ومفاتيحه ما ترتفع لـ GitHub).
+name: بناء التطبيق
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        clinic: [demo, noor]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: أدوات
+        run: python3 -m pip install --quiet pillow
+      - name: فحص العيادات
+        run: python3 tool/clinic.py check
+      - name: بناء Android (${{ matrix.clinic }})
+        run: |
+          # تحميل مكتبات Gradle أحياناً يفشل مؤقتاً من GitHub (504): نعيد المحاولة
+          for i in 1 2 3; do
+            python3 tool/clinic.py build ${{ matrix.clinic }} apk && exit 0
+            echo "::warning title=Android::المحاولة $i فشلت، إعادة بعد دقيقة"
+            sleep 60
+          done
+          exit 1
+      - name: التحقق من التطبيق
+        run: python3 tool/verify_build.py ${{ matrix.clinic }} android
+
+  ios:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        clinic: [demo, noor]
+    steps:
+      - uses: actions/checkout@v5
+      - name: اختيار أحدث Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          echo "::notice title=Xcode::$(xcodebuild -version | tr '\n' ' ')"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: أدوات
+        run: python3 -m pip install --quiet pillow || python3 -m pip install --quiet --break-system-packages pillow
+      - name: بناء iOS (${{ matrix.clinic }})
+        run: |
+          set -o pipefail
+          python3 tool/clinic.py build ${{ matrix.clinic }} ios --no-codesign 2>&1 | tee ios.log || {
+            grep -iE "error|failed|could not|unable|exception" ios.log | grep -v "^\s*$" | tail -25 | while IFS= read -r l; do echo "::error title=iOS::$l"; done
+            exit 1
+          }
+      - name: التحقق من التطبيق
+        run: python3 tool/verify_build.py ${{ matrix.clinic }} ios
+      - name: ملفات تغيّرت أثناء البناء
+        if: always()
+        run: |
+          # فلاتر أحياناً يحدّث ملفات مشروع آيفون (ترقيات تلقائية)، نعرضها عشان تنحفظ في المشروع
+          git status --porcelain -- ios | while IFS= read -r l; do echo "::notice title=تغيّر أثناء البناء::$l"; done
+          echo "----- diff"
+          git diff -- ios/Runner.xcodeproj ios/Runner.xcworkspace || true
+          echo "----- new files"
+          git ls-files --others --exclude-standard -- ios | while IFS= read -r f; do echo "== $f"; cat "$f"; echo; done
+
+  # نفس الجهاز ورا بعض: ما تتداخل إعدادات عيادة مع اللي بعدها، والحماية شغالة
+  sequential-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: python3 -m pip install --quiet pillow
+      - name: عيادتي ← نور ← عيادتي
+        run: |
+          for c in demo noor demo; do
+            ok=0
+            for i in 1 2 3; do python3 tool/clinic.py build $c apk && ok=1 && break; sleep 60; done
+            [ $ok = 1 ] || exit 1
+            python3 tool/verify_build.py $c android
+          done
+      - name: نسخة المتجر بدون ملف عيادة لازم ترفض
+        run: |
+          if flutter build appbundle --release > bundle.log 2>&1; then
+            echo "::error title=الحماية::نسخة المتجر انبنت بدون ملف عيادة"; exit 1
+          fi
+          grep -q "نسخة الإنتاج لازم تنبني بملف العيادة" bundle.log || { tail -30 bundle.log; echo "::error title=الحماية::فشل لسبب ثاني"; exit 1; }
+          echo "::notice title=الحماية (أندرويد)::نسخة المتجر بدون ملف عيادة انرفضت"
+
+  sequential-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+      - name: اختيار أحدث Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: python3 -m pip install --quiet pillow || python3 -m pip install --quiet --break-system-packages pillow
+      - name: عيادتي ← نور ← عيادتي
+        run: |
+          for c in demo noor demo; do
+            python3 tool/clinic.py build $c ios --no-codesign > build_$c.log 2>&1 || { tail -40 build_$c.log; exit 1; }
+            python3 tool/verify_build.py $c ios
+          done
+      - name: ملف عيادة غير العيادة المجهزة لازم يرفض
+        run: |
+          # Xcode مجهز لعيادتي (آخر بناء)، والملف لعيادة نور
+          if flutter build ios --release --no-codesign --dart-define-from-file=clinics/noor/config.json > mix.log 2>&1; then
+            echo "::error title=الحماية::انبنى تطبيق بإعدادات عيادتين مختلفتين"; exit 1
+          fi
+          grep -q 'Xcode مجهز لعيادة' mix.log || { tail -30 mix.log; echo "::error title=الحماية::فشل لسبب ثاني"; exit 1; }
+          echo "::notice title=الحماية (آيفون)::ملف عيادة نور مع إعدادات عيادتي انرفض"
+      - name: نسخة الإنتاج بدون ملف عيادة لازم ترفض
+        run: |
+          python3 tool/clinic.py use demo
+          if flutter build ipa --release --no-codesign > ipa.log 2>&1; then
+            echo "::error title=الحماية::نسخة الإنتاج انبنت بدون ملف عيادة"; exit 1
+          fi
+          grep -q 'نسخة الإنتاج لازم تنبني بملف العيادة' ipa.log || { tail -30 ipa.log; echo "::error title=الحماية::فشل لسبب ثاني"; exit 1; }
+          echo "::notice title=الحماية (آيفون)::نسخة الإنتاج بدون ملف عيادة انرفضت"

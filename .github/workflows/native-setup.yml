@@ -1,0 +1,93 @@
+# إنشاء مجلدي iOS وAndroid وضبطهما بإعدادات التطبيق الحالية (tool/native_setup.py)
+# يشتغل لما رسالة الـ commit فيها [native-setup] (على فرع غير main)، وبعدها يتأكد إن:
+#   - تطبيق Android يتبنى (debug)
+#   - تطبيق iOS يتبنى على ماك بدون توقيع
+# والنتائج تطلع كملاحظات (annotations) في صفحة التشغيل.
+name: إعداد iOS وAndroid
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  create:
+    if: contains(github.event.head_commit.message, '[native-setup]') && github.ref_name != 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: إنشاء وضبط
+        run: python3 tool/native_setup.py
+      - name: الملفات الجديدة خارج ios وandroid (المفروض ما فيه)
+        run: |
+          OTHER=$(git status --porcelain | grep -vE ' (ios|android)/|\.metadata$' || true)
+          echo "::notice title=ملفات أنشأها flutter create خارج ios وandroid::${OTHER:-ولا ملف}"
+      - id: commit
+        name: حفظ في المشروع
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ios android .metadata
+          git commit -m "مجلدا iOS وAndroid بإعدادات التطبيق الحالية" && git push || echo "ما فيه تغيير"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "::notice title=الملفات المحفوظة::$(git show --stat --oneline HEAD | tail -1)"
+
+  android:
+    needs: create
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.create.outputs.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter build apk --debug
+      - name: النتيجة
+        run: |
+          AAPT=$(ls -d "$ANDROID_HOME"/build-tools/*/aapt | tail -1)
+          INFO=$("$AAPT" dump badging build/app/outputs/flutter-apk/app-debug.apk | grep -E "^package:|^application-label:|^sdkVersion|^targetSdkVersion" | tr '\n' ' ')
+          echo "::notice title=Android انبنى::$INFO"
+
+  ios:
+    needs: create
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ needs.create.outputs.sha }}
+      - name: اختيار أحدث Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          [ -n "$X" ] && sudo xcode-select -s "$X"
+          xcodebuild -version
+          echo "::notice title=Xcode::$(xcodebuild -version | tr '\n' ' ')"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: بناء iOS
+        run: |
+          set -o pipefail
+          flutter build ios --debug --no-codesign 2>&1 | tee ios.log || {
+            grep -iE "error|failed|could not|unable|exception" ios.log | grep -v "^\s*$" | tail -25 | while IFS= read -r l; do echo "::error title=iOS::$l"; done
+            tail -15 ios.log | while IFS= read -r l; do echo "::notice title=iOS آخر السجل::$l"; done
+            exit 1
+          }
+      - name: النتيجة
+        run: |
+          P=build/ios/iphoneos/Runner.app/Info.plist
+          INFO=$(for k in CFBundleIdentifier CFBundleDisplayName CFBundleDevelopmentRegion UIUserInterfaceStyle MinimumOSVersion NSCalendarsFullAccessUsageDescription; do printf '%s=%s | ' "$k" "$(/usr/libexec/PlistBuddy -c "Print :$k" "$P")"; done)
+          echo "::notice title=iOS انبنى::$INFO"

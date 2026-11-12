@@ -1,0 +1,7 @@
+// إعدادات العيادة: الافتراضية عيادتي (demo)، وعيادة ثانية تتحدد بالأمر:
+//   python3 tool/clinic.py use <id>   (يكتب ClinicSelected.xcconfig، ما يرتفع لـ GitHub)
+#include "ClinicDefault.xcconfig"
+#include? "ClinicSelected.xcconfig"
+#include "Generated.xcconfig"
+// التوقيع المحلي (اختياري، ما يرتفع لـ GitHub): DEVELOPMENT_TEAM = XXXXXXXXXX
+#include? "Signing.xcconfig"
