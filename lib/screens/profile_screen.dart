@@ -120,7 +120,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     child: Text(
                                       displayPhone(widget.phone),
                                       textDirection: TextDirection.ltr,
-                                      textAlign: TextAlign.start,
+                                      // يمين الحقل مثل باقي النصوص (مو لاصق بكلمة "موثّق")
+                                      textAlign: TextAlign.end,
                                       style: ts(17, color: AppColors.body),
                                     ),
                                   ),
