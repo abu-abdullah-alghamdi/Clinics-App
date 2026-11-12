@@ -103,7 +103,7 @@ class StatesPreviewScreen extends StatelessWidget {
             ]),
             _Group(title: 'الدخول', rows: [
               _Row(
-                'الرمز غير صحيح',
+                'رمز التحقق غير صحيح',
                 hint: 'اكتب أي رمز غير 1111',
                 onTap: () => open(const OtpScreen(national: '551234567', inside: true)),
               ),

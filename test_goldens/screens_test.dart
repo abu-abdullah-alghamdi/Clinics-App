@@ -18,8 +18,10 @@ import 'package:clinics_app/main.dart';
 import 'package:clinics_app/screens/booking_screen.dart';
 import 'package:clinics_app/screens/cart_screen.dart';
 import 'package:clinics_app/screens/confirm_screen.dart';
+import 'package:clinics_app/screens/otp_screen.dart';
 import 'package:clinics_app/screens/payment_screen.dart';
 import 'package:clinics_app/screens/phone_screen.dart';
+import 'package:clinics_app/screens/profile_screen.dart';
 import 'package:clinics_app/screens/service_booking_screen.dart';
 import 'package:clinics_app/screens/service_screen.dart';
 import 'package:clinics_app/services_data.dart';
@@ -102,6 +104,7 @@ Future<void> _shot(
   int tab = 0,
   bool onboarding = false,
   Route<void> Function()? open,
+  Future<void> Function(WidgetTester tester)? then,
 }) async {
   _phone(tester);
   appState.setTab(tab);
@@ -109,6 +112,10 @@ Future<void> _shot(
   await _settle(tester);
   if (open != null) {
     tester.state<NavigatorState>(find.byType(Navigator).first).push(open());
+    await _settle(tester);
+  }
+  if (then != null) {
+    await then(tester);
     await _settle(tester);
   }
   await expectLater(find.byType(MaterialApp), matchesGoldenFile('goldens/$name.png'));
@@ -170,6 +177,21 @@ void main() {
     appState.cart.clear();
   }, variant: ios);
   testWidgets('رقم الجوال', (t) => _shot(t, '13_phone', open: () => iosRoute(const PhoneScreen(inside: true))), variant: ios);
+  testWidgets('رمز التحقق', (t) => _shot(t, '17_otp', open: () => iosRoute(const OtpScreen(national: '551234567', inside: true))), variant: ios);
+  testWidgets('رمز التحقق غير صحيح', (t) {
+    return _shot(t, '18_otp_wrong',
+        open: () => iosRoute(const OtpScreen(national: '551234567', inside: true)),
+        then: (t) => t.enterText(find.byType(TextField), '1234'));
+  }, variant: ios);
+  testWidgets('اسمك (عميل جديد)', (t) {
+    return _shot(t, '19_name',
+        open: () => iosRoute(const ProfileScreen(phone: '0551234567', inside: true)),
+        then: (t) => t.enterText(find.byType(TextField), 'أنس الغامدي'));
+  }, variant: ios);
+  testWidgets('معلوماتي الشخصية', (t) {
+    return _shot(t, '20_profile_edit',
+        open: () => iosRoute(const ProfileScreen(phone: '0551234567', initial: Profile(name: 'أنس الغامدي', phone: '0551234567'))));
+  }, variant: ios);
   testWidgets('الصفحات التعريفية', (t) => _shot(t, '14_onboarding', onboarding: true), variant: ios);
 
   // ─── بعد تسجيل الدخول (آخر شي عشان باقي الشاشات تبقى بحالة الزائر)

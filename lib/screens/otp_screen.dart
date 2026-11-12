@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -121,30 +122,55 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
         child: Column(
           children: [
             Expanded(
-              child: FloatingBar(side: 16, title: 'رمز التحقق', body: ListView(
+              child: FloatingBar(side: 16, body: ListView(
                 padding: EdgeInsets.fromLTRB(16, FloatingBar.safeTop(context) + FloatingBar.contentTop, 16, 20),
                 children: [
+                  const BigTitle('تحقق من رقمك', size: 34),
+                  const SizedBox(height: 22),
+
+                  // الجوال: الأيقونة يمين، والرقم جنبها وتحته "تبي تغير رقم الجوال؟"
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    child: Row(
                       children: [
-                        Text('أرسلنا الرمز إلى ', style: ts(15, color: AppColors.body, height: 1.8)),
-                        Directionality(
-                          textDirection: TextDirection.ltr,
-                          child: Text(_display, style: ts(15, weight: FontWeight.w600)),
+                        Container(
+                          width: 48,
+                          height: 48,
+                          decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
+                          child: const Icon(CupertinoIcons.device_phone_portrait, size: 24, color: AppColors.ink),
                         ),
-                        GestureDetector(
-                          onTap: () => Navigator.of(context).maybePop(),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-                            child: Text('تعديل', style: ts(15, weight: FontWeight.w600)),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Directionality(
+                                textDirection: TextDirection.ltr,
+                                child: Text(_display, style: ts(18, weight: FontWeight.w600)),
+                              ),
+                              Semantics(
+                                button: true,
+                                child: GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => Navigator.of(context).maybePop(),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                    child: Text('تبي تغير رقم الجوال؟', style: ts(14, weight: FontWeight.w600, color: AppColors.blue)),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 26),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                    child: Text('لقد أرسلنا للتو رمز التحقق عبر الرسائل القصيرة', style: ts(15, color: AppColors.body, height: 1.7)),
+                  ),
+                  const SizedBox(height: 12),
                   AnimatedBuilder(
                     animation: _shake,
                     builder: (context, child) {
@@ -210,7 +236,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                   ),
                   const SizedBox(height: 14),
                   if (_error)
-                    Text('الرمز غير صحيح، حاول مرة ثانية', textAlign: TextAlign.center, style: ts(14, color: AppColors.red)),
+                    Text('رمز التحقق غير صحيح', textAlign: TextAlign.center, style: ts(15, weight: FontWeight.w600, color: AppColors.red)),
                   if (_ok)
                     Text('تم التحقق', textAlign: TextAlign.center, style: ts(14, color: AppColors.green)),
                   const SizedBox(height: 6),
@@ -253,18 +279,6 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                   ),
                 ],
               )),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: PillButton(
-                  label: 'تأكيد',
-                  height: 50,
-                  enabled: code.length == 4 && !_ok,
-                  onTap: () => _check(code),
-                ),
-              ),
             ),
           ],
         ),
