@@ -160,8 +160,6 @@ class AccountTab extends StatelessWidget {
                       ),
                       onTap: () => Navigator.of(context).push(iosRoute(const OrdersScreen()))),
                 if (s.loggedIn) ...[
-                  row('ملفي الطبي', onTap: () => Navigator.of(context).push(iosRoute(const MedicalScreen()))),
-                  row('التأمين', onTap: () => Navigator.of(context).push(iosRoute(const InsuranceScreen()))),
                   row('باقاتي',
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,

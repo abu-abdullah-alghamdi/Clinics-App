@@ -11,6 +11,27 @@ git checkout backup/before-ui-changes -- <مسار الملف>
 
 ---
 
+## حذف ملفي الطبي والتأمين
+
+- الفرع: `ui/remove-medical-insurance` (مبني على `ui/simple-login`، ويندمج بعده)
+- الحالة: بانتظار التجربة على الجوال
+
+**انحذف من التطبيق**
+
+- صفّي "ملفي الطبي" و"التأمين" من حسابي.
+- صفحة "ملفي الطبي" (فصيلة الدم، الحساسية، الزيارات، الوصفات، التقارير) وصفحة تفاصيل الزيارة.
+- صفحة "التأمين" وبطاقة التأمين وقائمة التغطية.
+- في تأكيد حجز الطبيب: خيار "التأمين / الدفع بدون تأمين". صار يعرض سعر الكشف و"الدفع في العيادة" بس.
+
+**انحذف من الكود**
+
+- `lib/extras.dart`: `Prescription`، `MedFile`، `Visit`، `bloodType`، `allergies`، `medicalVisits`، `InsuranceCard`، `Coverage`، `demoInsurance`، `coverageList`، و`priceValue` (كان يستخدمه التأمين بس).
+- `lib/screens/extras_screens.dart`: `MedicalScreen`، `VisitScreen`، `InsuranceScreen`، `_InsuranceCardView`، و`_section`.
+- `lib/state.dart`: الحقل `insurance`.
+- `lib/screens/confirm_screen.dart`: `_useInsurance` و`_insuranceChoice`.
+
+---
+
 ## تسجيل الدخول بالاسم والجوال، وإلغاء الضريبة
 
 - الفرع: `ui/simple-login`

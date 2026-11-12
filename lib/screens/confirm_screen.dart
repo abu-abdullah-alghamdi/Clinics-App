@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data.dart';
-import '../extras.dart';
 import '../main.dart';
 import '../services_data.dart';
 import '../state.dart';
@@ -48,9 +47,6 @@ class ConfirmScreen extends StatefulWidget {
 class _ConfirmScreenState extends State<ConfirmScreen> {
   /// الوقت ممكن يتغير لو انحجز قبل ما يأكد
   late int time = widget.time;
-
-  /// الكشف بالتأمين (لو عنده بطاقة)
-  bool _useInsurance = true;
 
   Doctor get doctor => widget.doctor;
   String get cat => widget.cat;
@@ -132,72 +128,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
     );
   }
 
-  /// الدفع بالتأمين أو بدونه، وكم يغطي وكم يدفع في العيادة
-  List<Widget> _insuranceChoice(InsuranceCard ins, Doctor d) {
-    final price = priceValue(d);
-    final covered = (price * (100 - ins.copay) / 100).round();
-    Widget option(String label, String? sub, bool selected, VoidCallback onTap) => Pressable(
-          onTap: onTap,
-          selected: selected,
-          semanticLabel: sub == null ? label : '$label، $sub',
-          child: AnimatedContainer(
-            duration: motion(context, 200),
-            constraints: const BoxConstraints(minHeight: 64),
-            padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 18, 12),
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(26),
-              border: Border.all(color: selected ? AppColors.ink : Colors.transparent, width: 2),
-            ),
-            child: Row(
-              children: [
-                SelectDot(selected: selected),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(label, style: ts(17, weight: FontWeight.w600)),
-                      if (sub != null) Text(sub, style: ts(13, color: AppColors.faint)),
-                    ],
-                  ),
-                ),
-                if (sub != null) const Icon(CupertinoIcons.checkmark_shield, size: 22, color: AppColors.green),
-              ],
-            ),
-          ),
-        );
-    return [
-      Padding(
-        padding: const EdgeInsets.fromLTRB(10, 12, 10, 8),
-        child: Text('طريقة الدفع', style: ts(20, weight: FontWeight.w500)),
-      ),
-      option('التأمين', '${ins.company} · ${ins.tier}', _useInsurance, () => setState(() => _useInsurance = true)),
-      const SizedBox(height: 8),
-      option('الدفع بدون تأمين', null, !_useInsurance, () => setState(() => _useInsurance = false)),
-      const SizedBox(height: 10),
-      Container(
-        padding: const EdgeInsets.fromLTRB(22, 14, 22, 14),
-        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(32)),
-        child: Column(
-          children: _useInsurance
-              ? [
-                  amountRow('سعر الكشف', money(price)),
-                  amountRow('يغطيه التأمين (${fmtNum(100 - ins.copay)}%)', '- ${money(covered)}', color: AppColors.green),
-                  const Divider(color: AppColors.bg, height: 18, thickness: 1.5),
-                  amountRow('تدفع في العيادة', money(price - covered), bold: true),
-                ]
-              : [amountRow('تدفع في العيادة', money(price), bold: true)],
-        ),
-      ),
-      if (_useInsurance)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-          child: Text('المبلغ النهائي بعد موافقة شركة التأمين', style: ts(13, color: AppColors.faint)),
-        ),
-    ];
-  }
-
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
@@ -239,8 +169,6 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                     _packageNote(s)
                   else if (items.isNotEmpty)
                     AmountSummary(subtotal: subtotal)
-                  else if (s.insurance != null)
-                    ..._insuranceChoice(s.insurance!, d)
                   else
                     Container(
                       padding: const EdgeInsets.fromLTRB(22, 14, 22, 14),

@@ -274,9 +274,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// بطاقة التأمين (تجريبية)
-  InsuranceCard? insurance = demoInsurance;
-
   String get firstName {
     final parts = name.trim().split(' ');
     return parts.isEmpty ? '' : parts.first;
@@ -391,7 +388,6 @@ class AppState extends ChangeNotifier {
     waitlist.clear();
     checkedIn.clear();
     recentSearches.clear();
-    insurance = null;
     _signOut();
   }
 
