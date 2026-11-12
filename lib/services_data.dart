@@ -21,8 +21,8 @@ class Branch {
 
   bool openAt(DateTime t) => t.weekday != DateTime.friday && t.hour >= 16 && t.hour < 20;
 
-  /// رابط الاتجاهات في خرائط آبل
-  Uri get mapsUri => Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&q=${Uri.encodeComponent(name)}');
+  /// رابط الاتجاهات في قوقل ماب (يفتح التطبيق لو مثبت، وإلا المتصفح)
+  Uri get mapsUri => Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
 }
 
 // فروع تجريبية (العناوين والأرقام والمواقع تُستبدل بالحقيقية قبل النشر)

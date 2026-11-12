@@ -201,7 +201,7 @@ class _AppointmentCard extends StatelessWidget {
     } else {
       final row = Row(
         children: [
-          // الاتجاهات للفرع (خرائط آبل)
+          // الاتجاهات للفرع (قوقل ماب)
           CircleButton(
             icon: CupertinoIcons.location_fill,
             size: 44,
