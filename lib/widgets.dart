@@ -724,46 +724,6 @@ class HScroll extends StatelessWidget {
       );
 }
 
-/// مربع اختيار
-class AppCheck extends StatelessWidget {
-  const AppCheck({super.key, required this.value, required this.onChanged, required this.child});
-
-  final bool value;
-  final VoidCallback onChanged;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-        checked: value,
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onChanged,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedContainer(
-                  duration: motion(context, 200),
-                  width: 24,
-                  height: 24,
-                  margin: const EdgeInsets.only(top: 2),
-                  decoration: BoxDecoration(
-                    color: value ? AppColors.accent : AppColors.white,
-                    borderRadius: BorderRadius.circular(7),
-                    border: Border.all(color: AppColors.ink, width: 1.5),
-                  ),
-                  child: value ? const Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent) : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(child: child),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
 /// حقل إدخال كبسولة
 InputDecoration pillInput(String hint) => InputDecoration(
       hintText: hint,
@@ -1042,12 +1002,11 @@ Widget amountRow(String label, String value, {bool bold = false, Color? color}) 
       ),
     );
 
-/// ملخص المبلغ: المجموع والضريبة والإجمالي
+/// ملخص المبلغ: المجموع والخصم والإجمالي
 class AmountSummary extends StatelessWidget {
-  const AmountSummary({super.key, required this.subtotal, required this.vat, this.discount = 0, this.discountLabel = 'الخصم'});
+  const AmountSummary({super.key, required this.subtotal, this.discount = 0, this.discountLabel = 'الخصم'});
 
   final num subtotal;
-  final double vat;
 
   /// خصم كود الخصم (بالريال)
   final num discount;
@@ -1055,8 +1014,8 @@ class AmountSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = subtotal - discount + vat;
-    final detailed = vat > 0 || discount > 0;
+    final total = subtotal - discount;
+    final detailed = discount > 0;
     return Container(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 14),
       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(32)),
@@ -1065,11 +1024,10 @@ class AmountSummary extends StatelessWidget {
             ? [
                 amountRow('المجموع', money(subtotal)),
                 if (discount > 0) amountRow(discountLabel, '- ${money(discount)}', color: AppColors.green),
-                if (vat > 0) amountRow('ضريبة القيمة المضافة (${fmtNum((vatRate * 100).round())}%)', money(vat)),
                 const Divider(color: AppColors.bg, height: 18, thickness: 1.5),
                 amountRow('الإجمالي', money(total), bold: true),
               ]
-            // المواطن السعودي (والزائر قبل التسجيل): الإجمالي بس
+            // بدون خصم: الإجمالي بس
             : [amountRow('الإجمالي', money(total), bold: true)],
       ),
     );

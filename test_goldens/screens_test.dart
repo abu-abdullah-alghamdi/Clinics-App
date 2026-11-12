@@ -13,7 +13,6 @@ library;
 
 import 'dart:convert';
 
-import 'package:clinics_app/countries.dart';
 import 'package:clinics_app/data.dart';
 import 'package:clinics_app/main.dart';
 import 'package:clinics_app/screens/booking_screen.dart';
@@ -175,17 +174,10 @@ void main() {
 
   // ─── بعد تسجيل الدخول (آخر شي عشان باقي الشاشات تبقى بحالة الزائر)
   testWidgets('حسابي (مسجّل)', (t) async {
-    appState.saveProfile(Profile(
-      name: 'أنس الغامدي',
-      idNumber: '1234567890',
-      gender: 'm',
-      birthDate: DateTime(1995, 1, 1),
-      nationality: saudiArabia,
-      phone: '0551234567',
-    ));
+    appState.saveProfile(const Profile(name: 'أنس الغامدي', phone: '0551234567'));
     await _shot(t, '15_account_logged_in', tab: 3);
   }, variant: ios);
-  testWidgets('الدفع بعد التسجيل (بدون ضريبة للمواطن)', (t) {
+  testWidgets('الدفع بعد التسجيل (بدون ضريبة)', (t) {
     return _shot(t, '16_payment_logged_in',
         open: () => iosRoute(PaymentScreen(branchId: 'rawdah', items: [OrderItem(serviceById('s1'), 1)])));
   }, variant: ios);

@@ -125,7 +125,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
     if (!_cardOk || _phase != null) return;
     FocusScope.of(context).unfocus();
     final s = AppScope.read(context);
-    final amount = _subtotal - _discount + s.vatFor(_subtotal - _discount);
+    final amount = (_subtotal - _discount).toDouble();
     final cash = _method == PayMethod.cash;
     var reference = '';
 
@@ -302,9 +302,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final s = AppScope.of(context);
-    final vat = s.vatFor(_subtotal - _discount);
-    final total = _subtotal - _discount + vat;
+    final total = (_subtotal - _discount).toDouble();
     final payLabel = _method == PayMethod.cash
         ? 'تأكيد الطلب · ${money(total)}'
         : _method.installments
@@ -378,7 +376,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  AmountSummary(subtotal: _subtotal, vat: vat, discount: _discount, discountLabel: 'خصم ${_coupon ?? ''}'),
+                  AmountSummary(subtotal: _subtotal, discount: _discount, discountLabel: 'خصم ${_coupon ?? ''}'),
                   _label('كود الخصم'),
                   _couponBox(),
                   _label('طريقة الدفع'),

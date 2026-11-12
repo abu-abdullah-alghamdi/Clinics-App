@@ -88,7 +88,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
           s.login(widget.national);
           finishLogin(context, inside: widget.inside);
         } else {
-          // أول مرة: يعبّي معلوماته الشخصية
+          // أول مرة: يكتب اسمه بس
           Navigator.of(context).push(
             iosRoute(ProfileScreen(phone: phone, inside: widget.inside), name: loginRouteName),
           ).then((_) {

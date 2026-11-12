@@ -1,6 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'countries.dart';
 import 'data.dart';
 import 'extras.dart';
 import 'native.dart';
@@ -9,25 +8,10 @@ import 'services_data.dart';
 
 /// المعلومات الشخصية للمستخدم
 class Profile {
-  const Profile({
-    required this.name,
-    required this.idNumber,
-    required this.gender,
-    required this.birthDate,
-    required this.nationality,
-    required this.phone,
-    this.email = '',
-  });
+  const Profile({required this.name, required this.phone});
 
   final String name;
-  final String idNumber;
-
-  /// 'm' ذكر، 'f' أنثى
-  final String gender;
-  final DateTime birthDate;
-  final String nationality;
   final String phone;
-  final String email;
 }
 
 /// عنصر في طلب (خدمة وكميتها)
@@ -53,7 +37,6 @@ class Order {
     required this.items,
     required this.branchId,
     required this.subtotal,
-    required this.vat,
     required this.method,
     required this.date,
     required this.reference,
@@ -68,7 +51,6 @@ class Order {
   final List<OrderItem> items;
   final String branchId;
   final int subtotal;
-  final double vat;
   final PayMethod method;
   final DateTime date;
   final String reference;
@@ -86,7 +68,7 @@ class Order {
 
   bool get forOther => recipientName != null;
 
-  double get total => subtotal - discount + vat;
+  int get total => subtotal - discount;
 
   /// طريقة الدفع للعرض: "مدى ···· 4821"
   String get methodText => cardLast4 == null ? method.label : '${method.label} ···· $cardLast4';
@@ -146,14 +128,6 @@ class AppState extends ChangeNotifier {
   int get cartCount => cart.values.fold(0, (a, b) => a + b);
   List<OrderItem> get cartItems => [for (final e in cart.entries) OrderItem(serviceById(e.key), e.value)];
   int get cartSubtotal => cartItems.fold(0, (a, b) => a + b.total);
-  double get cartVat => vatFor(cartSubtotal);
-  double get cartTotal => cartSubtotal + cartVat;
-
-  /// ضريبة القيمة المضافة: المواطن السعودي ما عليه ضريبة على الخدمات الصحية الخاصة، والمقيم 15%.
-  /// الزائر ما تنحسب له لين يسجّل (الدفع يحتاج تسجيل دخول أصلاً)
-  bool get chargesVat => loggedIn && profile != null && profile!.nationality != saudiArabia;
-
-  double vatFor(int subtotal) => chargesVat ? subtotal * vatRate : 0;
 
   void addToCart(String serviceId, {int qty = 1}) {
     cart[serviceId] = ((cart[serviceId] ?? 0) + qty).clamp(1, maxQty);
@@ -206,7 +180,6 @@ class AppState extends ChangeNotifier {
       items: items,
       branchId: branchId,
       subtotal: subtotal,
-      vat: vatFor(subtotal - discount),
       method: method,
       date: DateTime.now(),
       reference: reference,

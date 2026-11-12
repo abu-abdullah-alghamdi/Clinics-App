@@ -37,7 +37,6 @@ class StatesPreviewScreen extends StatelessWidget {
       items: [OrderItem(serviceById('s1'), 1)],
       branchId: 'rawdah',
       subtotal: 200,
-      vat: 30,
       method: PayMethod.mada,
       date: DateTime.now(),
       reference: 'DEMO',
@@ -232,12 +231,12 @@ class _PayDemoState extends State<_PayDemo> {
     if (widget.success) {
       nav.pop();
     } else {
-      nav.pushReplacement(iosRoute(const PaymentFailedScreen(amount: 230, methodText: 'مدى ···· 4821')));
+      nav.pushReplacement(iosRoute(const PaymentFailedScreen(amount: 200, methodText: 'مدى ···· 4821')));
     }
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(child: PaymentProgressView(phase: _phase, amount: 230, methodText: 'مدى ···· 4821')),
+        body: SafeArea(child: PaymentProgressView(phase: _phase, amount: 200, methodText: 'مدى ···· 4821')),
       );
 }

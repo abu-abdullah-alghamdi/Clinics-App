@@ -43,7 +43,7 @@ class CartScreen extends StatelessWidget {
                       const SizedBox(height: 8),
                     ],
                     const SizedBox(height: 14),
-                    AmountSummary(subtotal: s.cartSubtotal, vat: s.cartVat),
+                    AmountSummary(subtotal: s.cartSubtotal),
                   ],
                 ],
               )),
@@ -52,7 +52,7 @@ class CartScreen extends StatelessWidget {
               // السلة تكمل في نفس رحلة الحجز: الفرع ← الطبيب ← اليوم ← الوقت ← الدفع
               BottomAction(
                 child: PillButton(
-                  label: 'اختيار الموعد · ${money(s.cartTotal)}',
+                  label: 'اختيار الموعد · ${money(s.cartSubtotal)}',
                   icon: CupertinoIcons.calendar,
                   height: 50,
                   fontSize: 17,

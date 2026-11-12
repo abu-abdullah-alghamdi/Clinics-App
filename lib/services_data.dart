@@ -148,9 +148,6 @@ const services = [
 
 Service serviceById(String id) => services.firstWhere((s) => s.id == id);
 
-/// ضريبة القيمة المضافة
-const vatRate = 0.15;
-
 /// صورة الخدمة المربعة بزوايا دائرية
 class ServiceImage extends StatelessWidget {
   const ServiceImage({super.key, required this.service, this.size = 92});

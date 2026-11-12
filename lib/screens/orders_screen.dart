@@ -57,7 +57,6 @@ class OrderCard extends StatelessWidget {
           for (final it in order.items)
             amountRow(it.label, money(it.total)),
           if (order.discount > 0) amountRow('خصم ${order.coupon ?? ''}', '- ${money(order.discount)}'),
-          amountRow('ضريبة القيمة المضافة', money(order.vat)),
           const Divider(color: AppColors.bg, height: 16, thickness: 1.5),
           amountRow('الإجمالي', money(order.total), bold: true),
         ],

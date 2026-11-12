@@ -238,7 +238,7 @@ class _ConfirmScreenState extends State<ConfirmScreen> {
                   if (widget.packageId != null)
                     _packageNote(s)
                   else if (items.isNotEmpty)
-                    AmountSummary(subtotal: subtotal, vat: s.vatFor(subtotal))
+                    AmountSummary(subtotal: subtotal)
                   else if (s.insurance != null)
                     ..._insuranceChoice(s.insurance!, d)
                   else
