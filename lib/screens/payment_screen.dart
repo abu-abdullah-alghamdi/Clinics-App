@@ -413,7 +413,7 @@ class _MethodTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: selected && method.installments ? AppColors.ink : Colors.transparent, width: 2),
+            border: Border.all(color: selected && method.installments ? AppColors.ink : Colors.transparent, width: 1),
           ),
           child: Column(
             children: [

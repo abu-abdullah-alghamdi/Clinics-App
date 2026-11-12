@@ -129,7 +129,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
       decoration: BoxDecoration(
         color: _ok ? AppColors.accent : AppColors.white,
         borderRadius: BorderRadius.circular(26),
-        border: Border.all(color: borderColor, width: 2),
+        border: Border.all(color: borderColor, width: 1),
       ),
       child: Text(filled ? fmtNum(code[i]) : '', style: ts(34, weight: FontWeight.w500, color: _ok ? AppColors.onAccent : null)),
     );

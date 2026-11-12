@@ -674,7 +674,7 @@ InputDecoration pillInput(String hint) => InputDecoration(
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(999), borderSide: BorderSide.none),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(999),
-        borderSide: const BorderSide(color: AppColors.ink, width: 2),
+        borderSide: const BorderSide(color: AppColors.ink, width: 1),
       ),
     );
 

@@ -78,7 +78,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(999),
-                        border: Border.all(color: _error ? AppColors.red : Colors.transparent, width: 2),
+                        border: Border.all(color: _error ? AppColors.red : Colors.transparent, width: 1),
                       ),
                       child: Row(
                         children: [

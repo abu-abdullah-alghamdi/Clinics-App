@@ -42,7 +42,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: selected ? AppColors.ink : Colors.transparent, width: 2),
+            border: Border.all(color: selected ? AppColors.ink : Colors.transparent, width: 1),
           ),
           child: Row(
             children: [
