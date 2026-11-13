@@ -183,9 +183,9 @@ class RequestCard extends StatelessWidget {
     String? payText;
     if (!b.free && (b.active || (b.isPackage && b.status == RequestStatus.completed))) {
       payText = b.paid
-          ? 'مدفوع · ${money(s.orderFor(b)?.total ?? b.price)}'
+          ? 'مدفوع ${money(s.orderFor(b)?.total ?? b.price)}'
           : b.payLater
-              ? 'الدفع في الفرع · ${b.priceText}'
+              ? 'الدفع في الفرع ${b.priceText}'
               : b.priceText;
     } else if (b.free && b.active) {
       payText = b.priceText;
@@ -261,11 +261,13 @@ class RequestCard extends StatelessWidget {
       if (b.status == RequestStatus.completed && !b.isPackage) ...[
         // رتوش جلسة الليزر خلال المدة
         if (s.touchUpDaysLeft(b) case final left?)
-          PillButton(
-            label: 'اطلب الرتوش · باقي ${daysText(left)}',
-            height: 50,
-            fontSize: 16,
-            onTap: () => requestTouchUp(context, b),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              PillButton(label: 'اطلب الرتوش', height: 50, fontSize: 16, onTap: () => requestTouchUp(context, b)),
+              const SizedBox(height: 6),
+              Text('باقي ${daysText(left)}', textAlign: TextAlign.center, style: ts(13, color: AppColors.faint)),
+            ],
           ),
         Row(
           children: [
@@ -324,6 +326,7 @@ class RequestCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(b.title, style: ts(20, height: 1.3)),
+                    if (b.packageName != null) Text(b.packageName!, style: ts(15, color: AppColors.body)),
                     Text(b.doctor?.name ?? 'الطبيب المتاح', style: ts(14, color: AppColors.body)),
                     if (b.forOther) Text('لـ ${b.recipientName}', style: ts(14, weight: FontWeight.w600)),
                   ],
@@ -352,13 +355,13 @@ class RequestCard extends StatelessWidget {
             )
           else
             Text(
-              at != null && !b.isPackage ? '${fmtWhen(at)} · ${b.branch.name}' : '${b.branch.name} · ${b.period.label}',
+              at != null && !b.isPackage ? lines([fmtWhen(at), b.branch.name]) : lines([b.branch.name, b.period.label]),
               style: ts(15, color: b.status == RequestStatus.cancelled ? AppColors.closedText : AppColors.ink,
                   decoration: b.status == RequestStatus.cancelled && at != null ? TextDecoration.lineThrough : null),
             ),
           if (b.status == RequestStatus.sent) ...[
             const SizedBox(height: 10),
-            Text('${b.branch.name} · ${b.period.label}', style: ts(15)),
+            Text(lines([b.branch.name, b.period.label]), style: ts(15)),
           ],
           // سبب إلغاء العيادة (والمبلغ يرجع كامل لو مدفوع)
           if (b.cancelledByClinic) ...[

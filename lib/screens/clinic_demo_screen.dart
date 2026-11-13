@@ -38,7 +38,7 @@ class ClinicDemoScreen extends StatelessWidget {
                 if (list.isNotEmpty) ...[
                   Padding(
                     padding: const EdgeInsets.fromLTRB(10, 22, 10, 8),
-                    child: Semantics(header: true, child: Text('$title · ${fmtNum(list.length)}', style: ts(20, weight: FontWeight.w500))),
+                    child: Semantics(header: true, child: Text('$title (${fmtNum(list.length)})', style: ts(20, weight: FontWeight.w500))),
                   ),
                   for (final b in list) ...[
                     _RequestRow(booking: b, patient: b.recipientName ?? (s.name.trim().isNotEmpty ? s.name.trim() : 'المريض')),
@@ -66,7 +66,7 @@ class _RequestRow extends StatelessWidget {
     final at = b.at;
     final actions = _actions(context, b);
     return Pressable(
-      onTap: actions.isEmpty ? null : () => showAppSheet(context, title: '${b.title} · #${b.number}', children: actions),
+      onTap: actions.isEmpty ? null : () => showAppSheet(context, title: '${b.title} #${b.number}', children: actions),
       semanticLabel: '${b.title}، $patient، $label',
       child: Container(
         padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 16, 12),
@@ -80,11 +80,12 @@ class _RequestRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(b.title, style: ts(16, weight: FontWeight.w600)),
-                  Text('$patient · ${b.branch.name}', style: ts(13, color: AppColors.body)),
+                  if (b.packageName != null) Text(b.packageName!, style: ts(13, color: AppColors.body)),
+                  Text(lines([patient, b.branch.name]), style: ts(13, color: AppColors.body)),
                   Text(
                     at != null && b.status != RequestStatus.sent && !b.isPackage
-                        ? '${fmtWhen(at)}${withDoctor(b)}'
-                        : '${b.period.label} · ${b.doctor?.name ?? 'الطبيب المتاح'}',
+                        ? lines([fmtWhen(at), b.doctor?.name])
+                        : lines([b.period.label, b.doctor?.name ?? 'الطبيب المتاح']),
                     style: ts(13, color: AppColors.faint),
                   ),
                 ],
@@ -138,7 +139,7 @@ class _RequestRow extends StatelessWidget {
       final doctorId = b.doctorId ?? (docs.isNotEmpty ? docs.first.id : doctors.first.id);
       s.clinicSchedule(b.id, at: at, doctorId: doctorId);
       // تجربة: تنبيه "تم تحديد موعدك" (بعد الربط يرسله السيرفر)
-      Reminders.notifyLater('scheduled:${b.id}', 'تم تحديد موعدك', '${b.title} · ${fmtWhen(at)}', const Duration(seconds: 5));
+      Reminders.notifyLater('scheduled:${b.id}', 'تم تحديد موعدك', lines([b.title, fmtWhen(at)]), const Duration(seconds: 5));
     }
 
     final cancel = action('إلغاء من العيادة', () => s.cancelByClinic(b.id, 'اعتذر الطبيب لظرف طارئ ونعتذر لك'), danger: true);
@@ -146,7 +147,7 @@ class _RequestRow extends StatelessWidget {
     return switch (b.status) {
       RequestStatus.sent when b.isPackage => [action('موافقة على الباقة', () => s.clinicApprove(b.id)), cancel],
       RequestStatus.sent => [
-          action('تحديد موعد ${fmtWhen(_slot(b.period))}', () => schedule(_slot(b.period))),
+          action('تحديد موعد ${fmtDay(_slot(b.period))} ${fmtClock(_slot(b.period))}', () => schedule(_slot(b.period))),
           action('تحديد موعد بعد ساعة', () => schedule(_soon())),
           cancel,
         ],

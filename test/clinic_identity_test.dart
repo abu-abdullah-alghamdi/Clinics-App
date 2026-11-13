@@ -53,10 +53,10 @@ void main() {
     test('Clinics App: النصوص والروابط نفس ما كانت قبل الفصل', () {
       expect(c, ClinicConfig.demo);
       final d = doctorById('d1');
-      expect(shareDoctorText(d), '${d.name} · ${d.role}\nاطلب موعدك من تطبيق Clinics App\nhttps://apps.apple.com/');
+      expect(shareDoctorText(d), '${d.name}\n${d.role}\nاطلب موعدك من تطبيق Clinics App\nhttps://apps.apple.com/');
       final s = serviceById('s1');
       final offer = s.onOffer ? ' (خصم ${fmtNum(s.discount)}%)' : '';
-      expect(shareServiceText(s), '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاطلبها من تطبيق Clinics App\nhttps://apps.apple.com/');
+      expect(shareServiceText(s), '${s.name}$offer\n${s.priceWords}\n${s.availabilityText}\nاطلبها من تطبيق Clinics App\nhttps://apps.apple.com/');
       expect(calendarEventNote, 'موعد في Clinics App');
       expect(forceUpdateMessage, 'هذي النسخة من Clinics App ما عاد تشتغل، حدّث التطبيق عشان تكمل حجوزاتك');
       expect(clinicCallUri.toString(), 'tel:+966000000000');

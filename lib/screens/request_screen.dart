@@ -309,8 +309,9 @@ class _RequestScreenState extends State<RequestScreen> {
               ),
             ),
             BottomAction(
+              price: widget.userPackage != null ? null : price,
               child: PillButton(
-                label: widget.userPackage != null ? 'إرسال الطلب' : 'إرسال الطلب · $price',
+                label: 'إرسال الطلب',
                 height: 50,
                 fontSize: 17,
                 enabled: _ready,
@@ -366,7 +367,7 @@ class _ServiceSummary extends StatelessWidget {
     final sub = package != null
         ? package!.name
         : up != null
-            ? '${up.package.name} · الجلسة ${fmtNum(up.used + 1)}'
+            ? '${up.package.name}\nالجلسة ${fmtNum(up.used + 1)}'
             : null;
     return Container(
       padding: const EdgeInsets.all(14),
@@ -637,6 +638,7 @@ class _RequestSentScreenState extends State<RequestSentScreen> {
                           const SizedBox(height: 22),
                           receiptCard([
                             receiptRow('الطلب', b.title),
+                            if (b.packageName != null) receiptRow('الباقة', b.packageName!),
                             receiptRow('الطبيب', b.doctor?.name ?? 'الطبيب المتاح'),
                             receiptRow('الفرع', b.branch.name),
                             receiptRow('الفترة', b.period.label),

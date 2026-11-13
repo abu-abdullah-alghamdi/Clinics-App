@@ -7,8 +7,10 @@ import 'package:url_launcher/url_launcher.dart';
 import '../clinic_config.dart';
 import '../data.dart';
 import '../extras.dart';
+import '../native.dart';
 import '../services_data.dart';
 import '../state.dart';
+import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'services_tab.dart';
@@ -82,7 +84,7 @@ class RatePrompt extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('كيف كانت زيارتك؟', style: ts(17, weight: FontWeight.w600)),
-                Text('${b.doctor?.name ?? b.branch.name} · ${b.title}', maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(14, color: AppColors.faint)),
+                Text('${b.title}${withDoctor(b)}', maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(14, color: AppColors.faint)),
                 const SizedBox(height: 6),
                 Row(
                   children: [
@@ -133,7 +135,7 @@ Future<void> showRatingSheet(BuildContext context, Booking b, {int stars = 5}) {
                 header: true,
                 child: Text(b.doctor == null ? 'قيّم زيارتك' : 'قيّم زيارتك مع ${b.doctor!.n1}', textAlign: TextAlign.center, style: ts(22, weight: FontWeight.w500)),
               ),
-              Text('${b.title} · ${b.branch.name}', textAlign: TextAlign.center, style: ts(14, color: AppColors.faint)),
+              Text(lines([b.title, b.branch.name]), textAlign: TextAlign.center, style: ts(14, color: AppColors.faint)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,

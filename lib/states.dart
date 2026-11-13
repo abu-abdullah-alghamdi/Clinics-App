@@ -597,7 +597,7 @@ class PaymentProgressView extends StatelessWidget {
                 child: Text(title, key: ValueKey(title), style: ts(30)),
               ),
               const SizedBox(height: 6),
-              Text('${money(amount)} · $methodText', style: ts(15, color: AppColors.body)),
+              Text(lines([money(amount), methodText]), textAlign: TextAlign.center, style: ts(15, color: AppColors.body)),
             ],
           ),
         ),
@@ -624,8 +624,8 @@ Widget receiptCard(List<Widget> rows) => Container(
       child: Column(children: rows),
     );
 
-/// تاريخ ووقت العملية: "7 نوفمبر 2026 · 4:58 م"
-String fmtStamp(DateTime d) => '${fmtNum(d.day)} ${monthNames[d.month - 1]} ${fmtNum(d.year)} · ${fmtClock(d)}';
+/// تاريخ ووقت العملية: "7 نوفمبر 2026، 4:58 م"
+String fmtStamp(DateTime d) => '${fmtNum(d.day)} ${monthNames[d.month - 1]} ${fmtNum(d.year)}، ${fmtClock(d)}';
 
 enum PaymentFailAction { retry, changeMethod }
 
@@ -766,8 +766,11 @@ Future<bool> showNativeAlert(
   return result?.value == 'ok';
 }
 
-/// "الأحد 15 نوفمبر · 5:30 م"
-String fmtWhen(DateTime t) => '${fmtDay(t)} · ${fmtClock(t)}';
+/// اليوم والوقت في سطرين: "الأحد 15 نوفمبر" وتحته "5:30 م"
+String fmtWhen(DateTime t) => '${fmtDay(t)}\n${fmtClock(t)}';
+
+/// يجمع المعلومات كل وحدة في سطر (ويتجاهل الفاضي)
+String lines(List<String?> parts) => parts.whereType<String>().where((x) => x.isNotEmpty).join('\n');
 
 /// تنبيه آبل الأصلي لإلغاء طلب أو موعد غير مدفوع
 Future<bool> showCancelAlert(BuildContext context, Booking b) {
@@ -775,7 +778,9 @@ Future<bool> showCancelAlert(BuildContext context, Booking b) {
   return showNativeAlert(
     context,
     title: scheduled ? 'هل تريد إلغاء الموعد؟' : 'هل تريد إلغاء الطلب؟',
-    message: scheduled ? '${b.title}${withDoctor(b)} · ${fmtWhen(b.at!)}' : '${b.title} · ${b.branch.name}',
+    message: scheduled
+        ? lines([b.title, b.doctor?.name, fmtWhen(b.at!), b.branch.name])
+        : lines([b.title, b.packageName, b.branch.name]),
     cancel: 'تراجع',
     destructive: scheduled ? 'إلغاء الموعد' : 'إلغاء الطلب',
   );
@@ -787,7 +792,7 @@ Future<bool> showPaidCancelSheet(BuildContext context, Booking b, num paid) asyn
     context,
     builder: (ctx) => _sheetBody([
       _sheetTitle('إلغاء الموعد؟'),
-      _sheetLine('${b.title}${withDoctor(b)}${b.at != null ? ' · ${fmtWhen(b.at!)}' : ''}'),
+      _sheetLine(lines([b.title, b.doctor?.name, if (b.at != null) fmtWhen(b.at!)])),
       const SizedBox(height: 14),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -858,7 +863,7 @@ Future<bool?> showDuplicateSheet(BuildContext context, {required Booking existin
               existing.at != null && existing.status == RequestStatus.scheduled ? fmtWhen(existing.at!) : 'طلب رقم ${existing.number}',
               style: ts(16, weight: FontWeight.w600),
             ),
-            Text('${existing.title} · ${existing.branch.name}', style: ts(14, color: AppColors.body)),
+            Text(lines([existing.title, existing.branch.name]), style: ts(14, color: AppColors.body)),
           ],
         ),
       ),

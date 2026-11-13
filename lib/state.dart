@@ -28,8 +28,8 @@ class OrderItem {
 
   int get total => _price ?? package?.price ?? service.finalPrice;
 
-  /// الاسم للعرض: "جلسة ليزر · باقة 6 جلسات"
-  String get label => package != null ? '${service.name} · ${package!.name}' : service.name;
+  /// الاسم للعرض: الخدمة، والباقة في سطر تحتها
+  String get label => package != null ? '${service.name}\n${package!.name}' : service.name;
 }
 
 /// عملية دفع من التطبيق

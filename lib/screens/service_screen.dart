@@ -241,8 +241,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
               )),
             ),
             BottomAction(
+              price: _pkg != null ? money(_pkg!.price) : priceLabel(sv),
               child: PillButton(
-                label: _pkg != null ? 'اطلب الباقة · ${money(_pkg!.price)}' : 'اطلب الخدمة',
+                label: _pkg != null ? 'اطلب الباقة' : 'اطلب الخدمة',
                 height: 50,
                 fontSize: 17,
                 onTap: () => openRequest(context, service: sv, package: _pkg),

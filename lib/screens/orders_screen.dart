@@ -5,6 +5,7 @@ import '../data.dart';
 import '../payments.dart';
 import '../services_data.dart';
 import '../state.dart';
+import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
 
@@ -39,8 +40,7 @@ class OrderCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 4),
-          Text('${_date(order.date)} · ${branchById(order.branchId).name} · ${order.method.label}',
-              style: ts(13, color: AppColors.faint)),
+          Text(lines([_date(order.date), branchById(order.branchId).name, order.method.label]), style: ts(13, color: AppColors.faint)),
           const SizedBox(height: 8),
           if (order.forOther)
             Padding(

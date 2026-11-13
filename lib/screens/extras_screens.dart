@@ -100,7 +100,8 @@ class _PackageCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(sv.name, style: ts(18, weight: FontWeight.w600)),
-                      Text('${p.package.name} · تنتهي ${_date(p.expires)}', style: ts(13, color: AppColors.faint)),
+                      Text(p.package.name, style: ts(13, color: AppColors.faint)),
+                      Text('تنتهي ${_date(p.expires)}', style: ts(13, color: AppColors.faint)),
                     ],
                   ),
                 ),

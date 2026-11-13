@@ -114,7 +114,7 @@ class _DoctorsTabState extends State<DoctorsTab> {
                     Text(d.role, style: ts(15, color: AppColors.body)),
                     const SizedBox(height: 14),
                     Text(d.availText, style: ts(26, color: AppColors.green)),
-                    Text('زيارة في العيادة · ${d.durationText}', style: ts(15)),
+                    Text('زيارة في العيادة، ${d.durationText}', style: ts(15)),
                   ],
                 ),
               ),

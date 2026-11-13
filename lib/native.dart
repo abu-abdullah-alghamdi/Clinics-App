@@ -39,13 +39,13 @@ Future<void> shareText(BuildContext context, String text) async {
 // اسم العيادة ورابط المشاركة من إعدادات العيادة (clinics/<id>/config.json)
 String shareDoctorText(Doctor d) {
   final c = ClinicConfig.current;
-  return '${d.name} · ${d.role}\nاطلب موعدك من تطبيق ${c.appName}\n${c.shareLink}';
+  return '${d.name}\n${d.role}\nاطلب موعدك من تطبيق ${c.appName}\n${c.shareLink}';
 }
 
 String shareServiceText(Service s) {
   final offer = s.onOffer ? ' (خصم ${fmtNum(s.discount)}%)' : '';
   final c = ClinicConfig.current;
-  return '${s.name}$offer · ${s.priceWords}\n${s.availabilityText}\nاطلبها من تطبيق ${c.appName}\n${c.shareLink}';
+  return '${s.name}$offer\n${s.priceWords}\n${s.availabilityText}\nاطلبها من تطبيق ${c.appName}\n${c.shareLink}';
 }
 
 /// الوصف في موعد التقويم
@@ -146,7 +146,7 @@ class Reminders {
       await _plugin.zonedSchedule(
         _id(b.id),
         'تذكير بموعدك',
-        'موعدك بعد ساعة${withDoctor(b)} · ${b.branch.name}',
+        'موعدك بعد ساعة${withDoctor(b)}\n${b.branch.name}',
         tz.TZDateTime.from(at, tz.local),
         const NotificationDetails(iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true)),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

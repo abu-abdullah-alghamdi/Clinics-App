@@ -83,12 +83,11 @@ bool hasTouchUp(Service sv) => sv.cat == 'laser' && !sv.kashf;
 extension RequestDetails on Booking {
   ServicePackage? get package => packageId == null ? null : packageById(packageId!);
 
-  /// اسم الطلب: الخدمة، أو الباقة، أو رتوش
-  String get title => package != null
-      ? '${service.name} · ${package!.name}'
-      : touchUpOf != null
-          ? 'رتوش ${service.name}'
-          : service.name;
+  /// اسم الطلب: الخدمة، أو رتوش الخدمة (والباقة سطر لحالها: packageName)
+  String get title => touchUpOf != null ? 'رتوش ${service.name}' : service.name;
+
+  /// اسم الباقة لطلب الباقة (يطلع تحت اسم الخدمة)
+  String? get packageName => package?.name;
 
   /// المبلغ المطلوب (0 لجلسة الباقة والرتوش)
   int get price {

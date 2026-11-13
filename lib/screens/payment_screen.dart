@@ -5,7 +5,6 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../extras.dart';
 import '../main.dart';
-import '../native.dart';
 import '../pay_widgets.dart';
 import '../payments.dart';
 import '../services_data.dart';
@@ -250,7 +249,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
   @override
   Widget build(BuildContext context) {
     final total = (_subtotal - _discount).toDouble();
-    final payLabel = _method.installments ? 'ادفع أول دفعة · ${money(total / installmentCount)}' : 'ادفع ${money(total)}';
+    final payNow = _method.installments ? money(total / installmentCount) : money(total);
     final at = _request.at;
 
     // وقت الدفع: الصفحة كلها تصير حركة التحقق، وما يقدر يرجع لين تخلص
@@ -315,10 +314,10 @@ class _PaymentScreenState extends State<PaymentScreen> {
                         if (at != null && !_request.isPackage)
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('${fmtWhen(at)}${withDoctor(_request)}', style: ts(14, color: AppColors.body)),
+                            child: Text(lines([_request.doctor?.name, fmtWhen(at)]), style: ts(14, color: AppColors.body)),
                           ),
                         const SizedBox(height: 8),
-                        amountRow(_request.title, money(_subtotal)),
+                        amountRow(lines([_request.title, _request.packageName]), money(_subtotal)),
                         const SizedBox(height: 8),
                       ],
                     ),
@@ -374,10 +373,12 @@ class _PaymentScreenState extends State<PaymentScreen> {
               )),
             ),
             BottomAction(
+              price: payNow,
+              priceLabel: _method.installments ? 'أول دفعة' : 'المبلغ',
               child: _method == PayMethod.applePay
                   ? ApplePayButton(onTap: _pay)
                   : PillButton(
-                      label: payLabel,
+                      label: 'ادفع',
                       height: 50,
                       fontSize: 17,
                       enabled: _cardOk,
@@ -487,7 +488,7 @@ class OrderDoneScreen extends StatelessWidget {
     final line = request.isPackage
         ? 'تم تفعيل الباقة'
         : at != null
-            ? '${fmtWhen(at)}${withDoctor(request)}'
+            ? lines([request.doctor?.name, fmtWhen(at)])
             : null;
     return Scaffold(
       body: SafeArea(

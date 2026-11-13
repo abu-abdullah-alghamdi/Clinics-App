@@ -1000,14 +1000,34 @@ class ScreenTitle extends StatelessWidget {
 
 /// منطقة الزر الأساسي أسفل الصفحة (بعرض الشاشة)
 class BottomAction extends StatelessWidget {
-  const BottomAction({super.key, required this.child});
+  const BottomAction({super.key, required this.child, this.price, this.priceLabel = 'المبلغ'});
 
   final Widget child;
+
+  /// المبلغ فوق الزر (بدل ما يكون داخل نص الزر)
+  final String? price;
+  final String priceLabel;
 
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-        child: SizedBox(width: double.infinity, child: child),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (price != null)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                child: Row(
+                  children: [
+                    Expanded(child: Text(priceLabel, style: ts(15, color: AppColors.body))),
+                    Text(price!, style: ts(19, weight: FontWeight.w700)),
+                  ],
+                ),
+              ),
+            child,
+          ],
+        ),
       );
 }
 

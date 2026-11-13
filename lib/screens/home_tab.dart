@@ -137,10 +137,10 @@ class _NextAppointmentPill extends StatelessWidget {
       semanticLabel: 'موعدك القادم مع $who، ${fmtDay(at)} الساعة ${fmtClock(at)}، ${b.branch.name}',
       child: Container(
         constraints: const BoxConstraints(minHeight: 60),
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
         decoration: BoxDecoration(
           color: AppColors.white,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: BorderRadius.circular(30),
           border: highContrast(context) ? Border.all(color: AppColors.ink, width: 1.5) : null,
         ),
         child: Row(
@@ -158,11 +158,11 @@ class _NextAppointmentPill extends StatelessWidget {
                     ]),
                     style: ts(15),
                   ),
-                  // اليوم والوقت والفرع في نظرة وحدة
-                  Text(
-                    '${fmtDay(at)} · ${fmtClock(at)} · ${b.branch.name}',
-                    style: ts(13, color: AppColors.body),
-                  ),
+                  // اليوم والوقت والفرع: كل وحدة في سطر
+                  const SizedBox(height: 2),
+                  Text(fmtDay(at), style: ts(13, color: AppColors.body)),
+                  Text(fmtClock(at), style: ts(13, color: AppColors.body)),
+                  Text(b.branch.name, style: ts(13, color: AppColors.body)),
                 ],
               ),
             ),

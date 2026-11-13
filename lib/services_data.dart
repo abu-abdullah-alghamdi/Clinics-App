@@ -17,7 +17,7 @@ class Branch {
   final double lng;
 
   /// أيام العمل: السبت إلى الخميس، من 9 الصباح إلى 9 المساء (الجمعة مغلق)
-  static const hoursText = 'السبت – الخميس · 9:00 ص – 9:00 م';
+  static const hoursText = 'السبت – الخميس\n9:00 ص – 9:00 م';
 
   bool openAt(DateTime t) => t.weekday != DateTime.friday && t.hour >= 9 && t.hour < 21;
 
@@ -373,11 +373,11 @@ List<Service> servicesOf(Doctor d) => [
   return (min: prices.first, max: prices.last);
 }
 
-/// نص السعر: المبلغ بالضبط، أو "يبدأ من" لو يختلف حسب الطبيب
+/// نص السعر: المبلغ بالضبط، أو "من" لو يختلف حسب الطبيب
 String priceLabel(Service sv, {Doctor? doctor, String? branchId}) {
   if (doctor != null) return money(sv.priceWith(doctor));
   final r = priceRange(sv, branchId: branchId);
-  return r.min == r.max ? money(r.min) : 'يبدأ من ${money(r.min)}';
+  return r.min == r.max ? money(r.min) : 'من ${money(r.min)}';
 }
 
 extension BookingDetails on Booking {
