@@ -211,7 +211,6 @@ class _RequestScreenState extends State<RequestScreen> {
                           onTap: () => s.toggleFavDoctor(d.id),
                         ),
                         imageWidth: 166,
-                        imageHeight: 222,
                         textWidth: 185,
                         padding: const EdgeInsets.fromLTRB(26, 26, 26, 20),
                         children: [

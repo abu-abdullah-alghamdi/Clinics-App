@@ -91,6 +91,7 @@ class _DoctorsTabState extends State<DoctorsTab> {
                 child: CutCard(
                   image: d.image,
                   textWidth: 180,
+                  minHeight: 280,
                   corner: FavButton(
                     active: s.favDoctors.contains(d.id),
                     name: d.name,

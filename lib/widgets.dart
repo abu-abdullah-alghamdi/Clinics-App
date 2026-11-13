@@ -535,27 +535,38 @@ class CutCard extends StatelessWidget {
     required this.children,
     this.bottom,
     this.imageWidth = 196,
-    this.imageHeight = 272,
     this.textWidth = 185,
     this.padding = const EdgeInsets.fromLTRB(26, 30, 26, 22),
     this.radius = 46,
     this.shadow = true,
     this.corner,
+    this.cornerSize = GlassCircle.barSize,
+    this.minHeight,
     this.borderColor,
   });
+
+  /// بعد زر الزاوية عن أعلى البطاقة وعن طرفها
+  static const cornerInset = 16.0;
 
   /// زر صغير في الزاوية العلوية (مثل قلب المفضلة)
   final Widget? corner;
 
+  /// حجم زر الزاوية: أسفله هو الحد اللي ما تطلع فوقه الصورة
+  final double cornerSize;
+
   final String image;
   final List<Widget> children;
   final Widget? bottom;
+
+  /// عرض الصورة مع تكبير الخط الكبير (تصغر عشان ما تتداخل مع الكلام)
   final double imageWidth;
-  final double imageHeight;
   final double textWidth;
   final EdgeInsets padding;
   final double radius;
   final bool shadow;
+
+  /// أقل طول للبطاقة (الصورة تكبر معه، والزر اللي تحت ينزل لأسفل البطاقة)
+  final double? minHeight;
 
   /// حد ملوّن حول البطاقة (مثل الموعد اللي ألغته العيادة)
   final Color? borderColor;
@@ -565,8 +576,39 @@ class CutCard extends StatelessWidget {
     // مع تكبير الخط، نوسّع عمود النص ونصغّر الصورة عشان ما يتداخلون
     final scale = (MediaQuery.textScalerOf(context).scale(100) / 100).clamp(1.0, 2.0);
     final tw = (textWidth * scale).clamp(textWidth, 300.0);
-    final iw = scale > 1.35 ? imageWidth * 0.75 : imageWidth;
-    final ih = scale > 1.35 ? imageHeight * 0.75 : imageHeight;
+    final big = scale > 1.35;
+    // حد الصورة من فوق: أسفل زر المفضلة بالضبط، فما يطلع منها شيء فوقه ولا جنبه.
+    // رأس الطبيب يبدأ من أعلى الصورة، فكل الأطباء رؤوسهم على نفس الخط مهما كان مقاس الصورة
+    final imageTop = corner != null ? cornerInset + cornerSize : padding.top;
+
+    Widget content = Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: minHeight == null ? MainAxisSize.min : MainAxisSize.max,
+        children: [
+          Align(
+            alignment: AlignmentDirectional.topStart,
+            child: SizedBox(
+              width: tw,
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
+            ),
+          ),
+          if (bottom != null) ...[
+            const SizedBox(height: 26),
+            if (minHeight != null) const Spacer(),
+            bottom!,
+          ],
+        ],
+      ),
+    );
+    if (minHeight != null) {
+      content = ConstrainedBox(
+        constraints: BoxConstraints(minHeight: minHeight!),
+        child: IntrinsicHeight(child: content),
+      );
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.white,
@@ -579,33 +621,18 @@ class CutCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
+          // الصورة تتصغّر على طول المساحة (من أسفل زر المفضلة لأسفل البطاقة)
           Positioned(
             left: -14,
+            top: imageTop,
             bottom: 0,
-            width: iw,
-            height: ih,
+            width: big ? imageWidth * 0.75 : 260,
             child: ExcludeSemantics(
-              child: Image.asset(image, fit: BoxFit.contain, alignment: Alignment.bottomLeft),
+              child: Image.asset(image, fit: big ? BoxFit.contain : BoxFit.fitHeight, alignment: Alignment.bottomLeft),
             ),
           ),
-          Padding(
-            padding: padding,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: AlignmentDirectional.topStart,
-                  child: SizedBox(
-                    width: tw,
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: children),
-                  ),
-                ),
-                if (bottom != null) ...[const SizedBox(height: 26), bottom!],
-              ],
-            ),
-          ),
-          if (corner != null) PositionedDirectional(top: 16, end: 16, child: corner!),
+          content,
+          if (corner != null) PositionedDirectional(top: cornerInset, end: cornerInset, child: corner!),
         ],
       ),
     );
