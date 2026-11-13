@@ -105,9 +105,6 @@ class Doctor {
     required this.role,
     required this.cats,
     required this.years,
-    required this.duration,
-    required this.price,
-    required this.availableToday,
     required this.image,
     required this.about,
     required this.patients,
@@ -123,9 +120,6 @@ class Doctor {
   final String role;
   final List<String> cats;
   final String years;
-  final int duration;
-  final String price;
-  final bool availableToday;
   final String image;
   final String about;
 
@@ -141,10 +135,6 @@ class Doctor {
   String get ratingText => rating.toStringAsFixed(1);
 
   String get name => '$n1 $n2';
-  String get durationText => '${fmtNum(duration)} دقيقة';
-  bool get reallyToday => availableToday && !DayInfo(0).closed;
-  String get availText => reallyToday ? 'متاح اليوم' : 'متاح غداً';
-  int get nextDay => firstOpenDay(fromToday: reallyToday);
 }
 
 int firstOpenDay({bool fromToday = true}) {
@@ -162,9 +152,6 @@ const doctors = [
     role: 'أخصائية طب أسنان عام',
     cats: ['dental'],
     years: 'خبرة +8 سنوات',
-    duration: 45,
-    price: '200 $riyalSign',
-    availableToday: true,
     image: 'assets/doctors/reem.png',
     about:
         'أخصائية طب أسنان عام، تهتم بالوقاية والعلاج التجميلي للأسنان مثل الحشوات التجميلية والتنظيف العميق. تحرص على شرح الخطة العلاجية بوضوح وتجربة مريحة قدر الإمكان، وتتعامل مع الأطفال والكبار',
@@ -180,9 +167,6 @@ const doctors = [
     role: 'استشاري تقويم الأسنان',
     cats: ['ortho', 'dental'],
     years: 'خبرة +12 سنة',
-    duration: 30,
-    price: '300 $riyalSign',
-    availableToday: false,
     image: 'assets/doctors/fahd.png',
     about:
         'استشاري تقويم الأسنان، متخصص في التقويم الشفاف والتقليدي وتصحيح إطباق الفك. يبدأ مع كل مريض بتقييم كامل وخطة علاج واضحة المدة والمراحل، مع متابعة دورية حتى نهاية العلاج',
@@ -199,9 +183,6 @@ const doctors = [
     role: 'أخصائية جلدية وليزر',
     cats: ['derma', 'laser'],
     years: 'خبرة +6 سنوات',
-    duration: 30,
-    price: '250 $riyalSign',
-    availableToday: true,
     image: 'assets/doctors/noura.png',
     about:
         'أخصائية الأمراض الجلدية والتجميل، تعالج حب الشباب والتصبغات ومشاكل البشرة، وتشرف على جلسات الليزر. تهتم بوضع خطة مناسبة لنوع البشرة مع روتين عناية منزلي سهل',
@@ -217,9 +198,6 @@ const doctors = [
     role: 'أخصائي جلدية',
     cats: ['derma'],
     years: 'خبرة +5 سنوات',
-    duration: 20,
-    price: '200 $riyalSign',
-    availableToday: false,
     image: 'assets/doctors/sultan.png',
     about:
         'أخصائي جلدية، يعالج الأكزيما والصدفية وتساقط الشعر والالتهابات الجلدية. يركز على التشخيص الدقيق والمتابعة المنتظمة لضمان أفضل نتيجة',

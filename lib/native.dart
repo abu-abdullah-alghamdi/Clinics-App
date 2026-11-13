@@ -19,7 +19,8 @@ import 'services_data.dart';
 /// بداية الموعد ونهايته (الموعد اللي حددته العيادة)
 DateTime bookingStart(Booking b) => b.at ?? DateTime.now();
 
-DateTime bookingEnd(Booking b) => bookingStart(b).add(Duration(minutes: b.doctor?.duration ?? 30));
+/// مدة الموعد في التقويم (العيادة تحددها، والتطبيق يحجز نص ساعة في التقويم)
+DateTime bookingEnd(Booking b) => bookingStart(b).add(const Duration(minutes: 30));
 
 /// "مع د. فهد الزهراني" (أو فاضي لو الطبيب ما تحدد)
 String withDoctor(Booking b) => b.doctor == null ? '' : ' مع ${b.doctor!.name}';
