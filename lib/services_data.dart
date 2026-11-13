@@ -373,11 +373,11 @@ List<Service> servicesOf(Doctor d) => [
   return (min: prices.first, max: prices.last);
 }
 
-/// نص السعر: المبلغ بالضبط، أو "من" لو يختلف حسب الطبيب
+/// نص السعر: المبلغ مع الطبيب، ومع "الطبيب المتاح" أقل مبلغ
 String priceLabel(Service sv, {Doctor? doctor, String? branchId}) {
   if (doctor != null) return money(sv.priceWith(doctor));
   final r = priceRange(sv, branchId: branchId);
-  return r.min == r.max ? money(r.min) : 'من ${money(r.min)}';
+  return money(r.min);
 }
 
 extension BookingDetails on Booking {
