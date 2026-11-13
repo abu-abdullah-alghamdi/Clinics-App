@@ -37,7 +37,8 @@ class HomeTab extends StatelessWidget {
           0,
           MediaQuery.paddingOf(context).top + 22,
           0,
-          navBottomSpace + 10,
+          // مساحة لشريط "عرض السلة" لما يكون ظاهر
+          navBottomSpace + (s.cartCount > 0 ? cartBarSpace : 0) + 10,
         ),
         children: [
           px(Padding(
@@ -447,7 +448,7 @@ class _MiniServiceCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  RequestCircle(service: sv),
+                  CartCircle(service: sv),
                 ],
               ),
             ),

@@ -144,7 +144,7 @@ class _PackageCard extends StatelessWidget {
             if (pending != null) ...[
               const SizedBox(height: 14),
               PillButton(
-                label: 'طلب الجلسة #${pending.number}',
+                label: 'طلب الجلسة ${pending.number}',
                 icon: CupertinoIcons.clock,
                 fontSize: 16,
                 bg: AppColors.bg,

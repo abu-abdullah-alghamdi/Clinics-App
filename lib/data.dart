@@ -242,6 +242,16 @@ String fmtDay(DateTime t) {
   return DayInfo((d.difference(appToday).inHours / 24).round()).full;
 }
 
+/// "261113" من التاريخ (السنة والشهر واليوم)
+String refStamp(DateTime d) =>
+    '${(d.year % 100).toString().padLeft(2, '0')}${d.month.toString().padLeft(2, '0')}${d.day.toString().padLeft(2, '0')}';
+
+/// رقم الطلب: "R-261113-007" (تاريخ الإرسال ورقم متسلسل)
+String requestNumber(int seq, [DateTime? day]) => 'R-${refStamp(day ?? appToday)}-${seq.toString().padLeft(3, '0')}';
+
+/// مرجع الإرسال المشترك للطلبات اللي انرسلت مع بعض: "G-261113-002"
+String groupNumber(int seq, [DateTime? day]) => 'G-${refStamp(day ?? appToday)}-${seq.toString().padLeft(3, '0')}';
+
 /// طلب موعد من المريض للعيادة (بدون تاريخ ووقت: العيادة تتواصل معه وتحدد الموعد من لوحة التحكم)
 class Booking {
   Booking({
@@ -257,6 +267,7 @@ class Booking {
     this.touchUpOf,
     this.recipientName,
     this.recipientPhone,
+    this.groupRef,
     this.status = RequestStatus.sent,
     this.at,
     DateTime? createdAt,
@@ -264,8 +275,11 @@ class Booking {
 
   final String id;
 
-  /// رقم الطلب
+  /// رقم الطلب ("R-261113-007")
   final String number;
+
+  /// مرجع الإرسال المشترك لو انرسل مع طلبات ثانية من السلة (كل طلب يبقى مستقل)
+  final String? groupRef;
   final String serviceId;
   final String branchId;
 

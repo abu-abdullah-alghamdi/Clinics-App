@@ -66,7 +66,7 @@ class _RequestRow extends StatelessWidget {
     final at = b.at;
     final actions = _actions(context, b);
     return Pressable(
-      onTap: actions.isEmpty ? null : () => showAppSheet(context, title: '${b.title} #${b.number}', children: actions),
+      onTap: actions.isEmpty ? null : () => showAppSheet(context, title: '${b.title} ${b.number}', children: actions),
       semanticLabel: '${b.title}، $patient، $label',
       child: Container(
         padding: const EdgeInsetsDirectional.fromSTEB(12, 12, 16, 12),
@@ -82,6 +82,8 @@ class _RequestRow extends StatelessWidget {
                   Text(b.title, style: ts(16, weight: FontWeight.w600)),
                   if (b.packageName != null) Text(b.packageName!, style: ts(13, color: AppColors.body)),
                   Text(lines([patient, b.branch.name]), style: ts(13, color: AppColors.body)),
+                  // رقم الطلب، ومرجع الإرسال لو انرسل مع طلبات ثانية
+                  Text(lines([b.number, b.groupRef]), style: ts(12, color: AppColors.faint)),
                   Text(
                     at != null && b.status != RequestStatus.sent && !b.isPackage
                         ? lines([fmtWhen(at), b.doctor?.name])

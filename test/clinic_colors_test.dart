@@ -166,7 +166,7 @@ void main() {
     'الدفع': (
       tab: 1,
       open: () => iosRoute(PaymentScreen(
-            request: Booking(id: 'c-pay', number: '2497', serviceId: 's2', branchId: 'rawdah', doctorId: 'd1', status: RequestStatus.scheduled, at: DateTime.now().add(const Duration(days: 1))),
+            request: Booking(id: 'c-pay', number: requestNumber(97), serviceId: 's2', branchId: 'rawdah', doctorId: 'd1', status: RequestStatus.scheduled, at: DateTime.now().add(const Duration(days: 1))),
           )),
       setup: null,
     ),

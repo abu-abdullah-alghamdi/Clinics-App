@@ -10,6 +10,8 @@ import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
+import '../main.dart';
+import 'cart_screen.dart';
 import 'request_screen.dart';
 import 'services_tab.dart';
 
@@ -242,11 +244,39 @@ class _ServiceScreenState extends State<ServiceScreen> {
             ),
             BottomAction(
               price: _pkg != null ? money(_pkg!.price) : priceLabel(sv),
-              child: PillButton(
-                label: _pkg != null ? 'اطلب الباقة' : 'اطلب الخدمة',
-                height: 50,
-                fontSize: 17,
-                onTap: () => openRequest(context, service: sv, package: _pkg),
+              child: Row(
+                children: [
+                  // السلة: يضيفها ويكمّل يختار خدمات ثانية (ولو موجودة يفتح السلة)
+                  Builder(builder: (context) {
+                    final s = AppScope.of(context);
+                    final added = s.inCart(sv.id, packageId: _pkg?.id);
+                    return CircleButton(
+                      icon: added ? CupertinoIcons.bag_fill : CupertinoIcons.bag_badge_plus,
+                      size: 50,
+                      iconSize: 22,
+                      bg: added ? AppColors.ink : AppColors.white,
+                      fg: added ? AppColors.white : AppColors.ink,
+                      semanticLabel: added ? 'عرض السلة' : 'أضف للسلة',
+                      onTap: () {
+                        if (added) {
+                          Navigator.of(context).push(iosRoute(const CartScreen()));
+                        } else {
+                          HapticFeedback.lightImpact();
+                          s.addToCart(sv.id, packageId: _pkg?.id);
+                        }
+                      },
+                    );
+                  }),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: PillButton(
+                      label: _pkg != null ? 'اطلب الباقة' : 'اطلب الخدمة',
+                      height: 50,
+                      fontSize: 17,
+                      onTap: () => openRequest(context, service: sv, package: _pkg),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

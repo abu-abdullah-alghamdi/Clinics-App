@@ -127,7 +127,7 @@ Booking _scheduled(String serviceId, String doctorId) {
   final d = DayInfo(1).date;
   return Booking(
     id: 'g-$serviceId',
-    number: '2499',
+    number: requestNumber(99),
     serviceId: serviceId,
     branchId: 'rawdah',
     doctorId: doctorId,
@@ -168,8 +168,8 @@ void main() {
   testWidgets('طلب موعد مع طبيب', (t) => _shot(t, '08_doctor_request', open: () => iosModal(RequestScreen(doctor: doctorById('d2')))), variant: ios);
   testWidgets('طلب خدمة', (t) => _shot(t, '09_service_request', open: () => iosModal(RequestScreen(service: serviceById('s1')))), variant: ios);
   testWidgets('تم إرسال الطلب', (t) {
-    final b = Booking(id: 'g-sent', number: '2498', serviceId: 's1', branchId: 'salamah', period: Period.morning);
-    return _shot(t, '10_request_sent', open: () => iosRoute(RequestSentScreen(request: b)));
+    final b = Booking(id: 'g-sent', number: requestNumber(98), serviceId: 's1', branchId: 'salamah', period: Period.morning);
+    return _shot(t, '10_request_sent', open: () => iosRoute(RequestSentScreen(requests: [b])));
   }, variant: ios);
   testWidgets('الدفع', (t) => _shot(t, '11_payment', open: () => iosRoute(PaymentScreen(request: _scheduled('s2', 'd1')))), variant: ios);
   testWidgets('لوحة العيادة', (t) => _shot(t, '12_clinic_demo', open: () => iosRoute(const ClinicDemoScreen())), variant: ios);

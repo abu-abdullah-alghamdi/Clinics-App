@@ -32,6 +32,29 @@ class OrderItem {
   String get label => package != null ? '${service.name}\n${package!.name}' : service.name;
 }
 
+/// خدمة (أو باقة) في السلة، والطبيب اللي اختاره لها
+class CartEntry {
+  CartEntry(this.serviceId, {this.packageId});
+
+  final String serviceId;
+  final String? packageId;
+
+  /// null = الطبيب المتاح
+  String? doctorId;
+
+  Service get service => serviceById(serviceId);
+  ServicePackage? get package => packageId == null ? null : packageById(packageId!);
+  Doctor? get doctor => doctorId == null ? null : doctorById(doctorId!);
+
+  /// المبلغ في الفرع المختار (الطبيب المتاح: أقل سعر)
+  int priceIn(String? branchId) {
+    final p = package;
+    if (p != null) return p.price;
+    final d = doctor;
+    return d != null ? service.priceWith(d) : priceRange(service, branchId: branchId).min;
+  }
+}
+
 /// عملية دفع من التطبيق
 class Order {
   const Order({
@@ -88,10 +111,10 @@ class AppState extends ChangeNotifier {
     }
 
     bookings.addAll([
-      Booking(id: 'seed1', number: '2401', serviceId: 's5', branchId: 'rawdah', doctorId: 'd2', status: RequestStatus.scheduled, at: day(3, 17, 30)),
-      Booking(id: 'seed2', number: '2402', serviceId: 's1', branchId: 'salamah', period: Period.morning),
-      Booking(id: 'seed3', number: '2403', serviceId: 's7', branchId: 'salamah', doctorId: 'd3', userPackageId: 'seedp', status: RequestStatus.completed, at: day(-3, 18)),
-      Booking(id: 'seed4', number: '2404', serviceId: 'c3', branchId: 'hamdaniyah', doctorId: 'd4', status: RequestStatus.completed, at: day(-9, 17)),
+      Booking(id: 'seed1', number: requestNumber(1), serviceId: 's5', branchId: 'rawdah', doctorId: 'd2', status: RequestStatus.scheduled, at: day(3, 17, 30)),
+      Booking(id: 'seed2', number: requestNumber(2), serviceId: 's1', branchId: 'salamah', period: Period.morning),
+      Booking(id: 'seed3', number: requestNumber(3), serviceId: 's7', branchId: 'salamah', doctorId: 'd3', userPackageId: 'seedp', status: RequestStatus.completed, at: day(-3, 18)),
+      Booking(id: 'seed4', number: requestNumber(4), serviceId: 'c3', branchId: 'hamdaniyah', doctorId: 'd4', status: RequestStatus.completed, at: day(-9, 17)),
     ]);
   }
 
@@ -336,6 +359,7 @@ class AppState extends ChangeNotifier {
     profile = null;
     loggedIn = false;
     tab = 0;
+    cart.clear();
     orders.clear();
     notifyListeners();
   }
@@ -345,7 +369,69 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  int _seq = 0;
+  /// آخر رقم متسلسل للطلبات (الطلبات التجريبية 1 إلى 4) ولمراجع الإرسال
+  int _seq = 4;
+  int _groupSeq = 0;
+
+  // ───────── السلة: خدمات (أو باقات) تنرسل مع بعض، وكل وحدة تصير طلب مستقل
+
+  final List<CartEntry> cart = [];
+
+  int get cartCount => cart.length;
+
+  CartEntry? cartEntry(String serviceId, {String? packageId}) {
+    for (final e in cart) {
+      if (e.serviceId == serviceId && e.packageId == packageId) return e;
+    }
+    return null;
+  }
+
+  bool inCart(String serviceId, {String? packageId}) => cartEntry(serviceId, packageId: packageId) != null;
+
+  /// يضيف للسلة (ولو موجودة ما تتكرر)
+  void addToCart(String serviceId, {String? packageId}) {
+    if (inCart(serviceId, packageId: packageId)) return;
+    cart.add(CartEntry(serviceId, packageId: packageId));
+    notifyListeners();
+  }
+
+  void removeFromCart(CartEntry e) {
+    cart.remove(e);
+    notifyListeners();
+  }
+
+  /// يضيف أو يشيل (زر السلة على بطاقة الخدمة)
+  void toggleCart(String serviceId) {
+    final e = cartEntry(serviceId);
+    e == null ? addToCart(serviceId) : removeFromCart(e);
+  }
+
+  /// الطبيب لخدمة في السلة (null = الطبيب المتاح)
+  void setCartDoctor(CartEntry e, String? doctorId) {
+    e.doctorId = doctorId;
+    notifyListeners();
+  }
+
+  /// يرسل كل اللي في السلة: كل خدمة طلب مستقل برقمه، وكلهم بمرجع إرسال واحد
+  List<Booking> sendCart({required String branchId, required Period period, String? recipientName, String? recipientPhone}) {
+    final group = cart.length > 1 ? groupNumber(++_groupSeq) : null;
+    final sent = [
+      for (final e in cart)
+        addRequest(
+          serviceId: e.serviceId,
+          branchId: branchId,
+          doctorId: e.doctorId,
+          period: period,
+          packageId: e.packageId,
+          recipientName: recipientName,
+          recipientPhone: recipientPhone,
+          groupRef: group,
+        ),
+    ];
+    cart.clear();
+    notifyListeners();
+    return sent;
+  }
 
   Booking _find(String id) => bookings.firstWhere((x) => x.id == id);
 
@@ -360,11 +446,13 @@ class AppState extends ChangeNotifier {
     String? touchUpOf,
     String? recipientName,
     String? recipientPhone,
+    String? groupRef,
   }) {
     _seq++;
     final b = Booking(
       id: 'r${DateTime.now().microsecondsSinceEpoch}$_seq',
-      number: '${2404 + _seq}',
+      number: requestNumber(_seq),
+      groupRef: groupRef,
       serviceId: serviceId,
       branchId: branchId,
       doctorId: doctorId,

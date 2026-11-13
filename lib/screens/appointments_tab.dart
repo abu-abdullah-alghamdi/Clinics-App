@@ -313,7 +313,8 @@ class RequestCard extends StatelessWidget {
                 child: Text(label, style: ts(13, weight: FontWeight.w600, color: badgeFg)),
               ),
               const Spacer(),
-              Text('#${b.number}', style: ts(13, color: AppColors.faint)),
+              // رقم الطلب، ومرجع الإرسال لو انرسل مع طلبات ثانية من السلة
+              Text(lines([b.number, b.groupRef]), textAlign: TextAlign.end, style: ts(13, color: AppColors.faint)),
             ],
           ),
           const SizedBox(height: 14),

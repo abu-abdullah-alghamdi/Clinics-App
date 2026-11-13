@@ -860,7 +860,7 @@ Future<bool?> showDuplicateSheet(BuildContext context, {required Booking existin
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              existing.at != null && existing.status == RequestStatus.scheduled ? fmtWhen(existing.at!) : 'طلب رقم ${existing.number}',
+              existing.at != null && existing.status == RequestStatus.scheduled ? fmtWhen(existing.at!) : 'رقم الطلب ${existing.number}',
               style: ts(16, weight: FontWeight.w600),
             ),
             Text(lines([existing.title, existing.branch.name]), style: ts(14, color: AppColors.body)),

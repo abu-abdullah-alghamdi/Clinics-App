@@ -31,7 +31,7 @@ class StatesPreviewScreen extends StatelessWidget {
         ? s.upcoming.first
         : Booking(
             id: 'demo',
-            number: '2400',
+            number: requestNumber(0),
             serviceId: 's5',
             branchId: 'rawdah',
             doctorId: 'd2',

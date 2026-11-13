@@ -141,7 +141,7 @@ class _RequestScreenState extends State<RequestScreen> {
       recipientName: other ? _name.text.trim() : null,
       recipientPhone: phone,
     );
-    Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(request: b)));
+    Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(requests: [b])));
   }
 
   Widget _title(String text) => px(Padding(
@@ -258,7 +258,7 @@ class _RequestScreenState extends State<RequestScreen> {
                     )),
                     if (d == null) ...[
                       _title('الطبيب'),
-                      px(_Choice(
+                      px(ChoiceRow(
                         leading: Container(
                           width: 52,
                           height: 52,
@@ -273,7 +273,7 @@ class _RequestScreenState extends State<RequestScreen> {
                       for (final x in docs)
                         px(Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: _Choice(
+                          child: ChoiceRow(
                             leading: DoctorAvatar(doctor: x, size: 52),
                             title: x.name,
                             subtitle: x.role,
@@ -396,8 +396,8 @@ class _ServiceSummary extends StatelessWidget {
 }
 
 /// خيار في قائمة (الطبيب المتاح أو طبيب معيّن): صورة، اسم، سطر، المبلغ، ودائرة الاختيار
-class _Choice extends StatelessWidget {
-  const _Choice({required this.leading, required this.title, this.subtitle, this.trailing, required this.selected, required this.onTap});
+class ChoiceRow extends StatelessWidget {
+  const ChoiceRow({super.key, required this.leading, required this.title, this.subtitle, this.trailing, required this.selected, required this.onTap});
 
   final Widget leading;
   final String title;
@@ -569,14 +569,15 @@ Future<void> requestTouchUp(BuildContext context, Booking session) async {
       ),
     ),
   );
-  if (sent != null && context.mounted) Navigator.of(context).push(iosRoute(RequestSentScreen(request: sent)));
+  if (sent != null && context.mounted) Navigator.of(context).push(iosRoute(RequestSentScreen(requests: [sent])));
 }
 
 /// تم إرسال الطلب: العيادة تتواصل مع المريض وتحدد الموعد
 class RequestSentScreen extends StatefulWidget {
-  const RequestSentScreen({super.key, required this.request});
+  const RequestSentScreen({super.key, required this.requests});
 
-  final Booking request;
+  /// طلب واحد، أو طلبات السلة (كل وحدة مستقلة وبينهم مرجع إرسال واحد)
+  final List<Booking> requests;
 
   @override
   State<RequestSentScreen> createState() => _RequestSentScreenState();
@@ -596,7 +597,9 @@ class _RequestSentScreenState extends State<RequestSentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final b = widget.request;
+    final list = widget.requests;
+    final b = list.first;
+    final many = list.length > 1;
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -630,21 +633,35 @@ class _RequestSentScreenState extends State<RequestSentScreen> {
                           const SizedBox(height: 18),
                           Semantics(
                             header: true,
-                            child: Text('تم إرسال طلبك بنجاح إلى العيادة', textAlign: TextAlign.center, style: ts(28, height: 1.3)),
+                            child: Text(many ? 'تم إرسال طلباتك بنجاح إلى العيادة' : 'تم إرسال طلبك بنجاح إلى العيادة', textAlign: TextAlign.center, style: ts(28, height: 1.3)),
                           ),
                           const SizedBox(height: 6),
                           Text('سيتم التواصل معك', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
                           const SizedBox(height: 22),
-                          receiptCard([
-                            receiptRow('الطلب', b.title),
-                            if (b.packageName != null) receiptRow('الباقة', b.packageName!),
-                            receiptRow('الطبيب', b.doctor?.name ?? 'الطبيب المتاح'),
-                            receiptRow('الفرع', b.branch.name),
-                            receiptRow('الفترة', b.period.label),
-                            if (b.forOther) receiptRow('لـ', b.recipientName!),
-                            receiptRow('المبلغ', b.priceText),
-                            receiptRow('رقم الطلب', '#${b.number}'),
-                          ]),
+                          if (many) ...[
+                            // كل طلب برقمه (مستقل)، وتحتهم المعلومات المشتركة ومرجع الإرسال
+                            receiptCard([
+                              for (final r in list) receiptRow(lines([r.title, r.packageName]), r.number),
+                            ]),
+                            const SizedBox(height: 10),
+                            receiptCard([
+                              receiptRow('الفرع', b.branch.name),
+                              receiptRow('الفترة', b.period.label),
+                              if (b.forOther) receiptRow('لـ', b.recipientName!),
+                              receiptRow('المبلغ', money(list.fold<int>(0, (a, r) => a + r.price))),
+                              if (b.groupRef != null) receiptRow('مرجع الإرسال', b.groupRef!),
+                            ]),
+                          ] else
+                            receiptCard([
+                              receiptRow('الطلب', b.title),
+                              if (b.packageName != null) receiptRow('الباقة', b.packageName!),
+                              receiptRow('الطبيب', b.doctor?.name ?? 'الطبيب المتاح'),
+                              receiptRow('الفرع', b.branch.name),
+                              receiptRow('الفترة', b.period.label),
+                              if (b.forOther) receiptRow('لـ', b.recipientName!),
+                              receiptRow('المبلغ', b.priceText),
+                              receiptRow('رقم الطلب', b.number),
+                            ]),
                         ],
                       ),
                     ),

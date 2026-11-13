@@ -81,6 +81,29 @@ class _MainShellState extends State<MainShell> {
               ),
             ),
           ),
+          // شريط "عرض السلة" فوق الشريط العائم في الرئيسية والخدمات (يطلع بعد أول إضافة)
+          Positioned(
+            left: 16,
+            right: 16,
+            bottom: MediaQuery.paddingOf(context).bottom + navBarHeight + 8,
+            child: SafeArea(
+              top: false,
+              bottom: false,
+              child: AnimatedSwitcher(
+                duration: motion(context, 250),
+                transitionBuilder: (child, a) => FadeTransition(
+                  opacity: a,
+                  child: SlideTransition(
+                    position: Tween(begin: const Offset(0, 0.4), end: Offset.zero).animate(a),
+                    child: child,
+                  ),
+                ),
+                child: (s.tab == 4 || s.tab == 0) && s.cartCount > 0
+                    ? CartBar(key: const ValueKey('cart-bar'), count: s.cartCount)
+                    : const SizedBox(key: ValueKey('no-bar'), width: double.infinity),
+              ),
+            ),
+          ),
           // شريط التبويبات الأصلي من آبل (يتعامل مع منطقة الأمان والزجاج والحركة بنفسه)
         ],
       ),
