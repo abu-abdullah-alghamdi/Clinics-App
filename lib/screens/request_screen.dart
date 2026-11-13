@@ -411,8 +411,7 @@ class ChoiceRow extends StatelessWidget {
         onTap: onTap,
         selected: selected,
         semanticLabel: [title, if (subtitle != null) subtitle!, if (trailing != null) trailing!].join('، '),
-        child: AnimatedContainer(
-          duration: motion(context, 200),
+        child: Container(
           padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 16, 10),
           decoration: BoxDecoration(
             color: AppColors.white,

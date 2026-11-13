@@ -71,8 +71,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                   const SizedBox(height: 8),
                   Directionality(
                     textDirection: TextDirection.ltr,
-                    child: AnimatedContainer(
-                      duration: motion(context, 200),
+                    child: Container(
                       constraints: const BoxConstraints(minHeight: 70),
                       padding: const EdgeInsets.only(left: 8, right: 22),
                       decoration: BoxDecoration(

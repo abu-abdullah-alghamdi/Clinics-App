@@ -122,8 +122,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
         : active
             ? AppColors.ink
             : Colors.transparent;
-    return AnimatedContainer(
-      duration: motion(context, 200),
+    return Container(
       height: 86 * uiScale(context),
       alignment: Alignment.center,
       decoration: BoxDecoration(

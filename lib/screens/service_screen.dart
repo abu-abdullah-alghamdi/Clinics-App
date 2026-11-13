@@ -36,8 +36,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
         onTap: onTap,
         selected: selected,
         semanticLabel: '$title، ${spokenMoney(price)}${save > 0 ? '، وفّر ${fmtNum(save)}%' : ''}',
-        child: AnimatedContainer(
-          duration: motion(context, 200),
+        child: Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 18, 12),
           constraints: const BoxConstraints(minHeight: 64),

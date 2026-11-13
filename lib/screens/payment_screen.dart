@@ -407,8 +407,7 @@ class _MethodTile extends StatelessWidget {
         onTap: onTap,
         selected: selected,
         semanticLabel: '${method.label}، ${method.hint}',
-        child: AnimatedContainer(
-          duration: motion(context, 200),
+        child: Container(
           constraints: const BoxConstraints(minHeight: 64),
           padding: const EdgeInsetsDirectional.fromSTEB(14, 12, 16, 12),
           decoration: BoxDecoration(

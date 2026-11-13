@@ -179,8 +179,7 @@ Future<void> showRatingSheet(BuildContext context, Booking b, {int stars = 5}) {
                       onTap: () => setSheet(() => picked.contains(t) ? picked.remove(t) : picked.add(t)),
                       selected: picked.contains(t),
                       semanticLabel: t,
-                      child: AnimatedContainer(
-                        duration: motion(ctx, 180),
+                      child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                         decoration: BoxDecoration(
                           color: picked.contains(t) ? AppColors.ink : AppColors.bg,

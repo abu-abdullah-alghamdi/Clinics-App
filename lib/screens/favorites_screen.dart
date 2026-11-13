@@ -31,8 +31,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             onTap: () => setState(() => _tab = i),
             selected: _tab == i,
             semanticLabel: label,
-            child: AnimatedContainer(
-              duration: motion(context, 200),
+            child: Container(
               constraints: const BoxConstraints(minHeight: 54),
               alignment: Alignment.center,
               decoration: BoxDecoration(

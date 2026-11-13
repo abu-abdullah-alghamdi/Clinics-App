@@ -143,8 +143,7 @@ class PillButton extends StatelessWidget {
       onTap: onTap,
       enabled: enabled,
       semanticLabel: label,
-      child: AnimatedContainer(
-        duration: motion(context, 250),
+      child: Container(
         constraints: BoxConstraints(minHeight: height),
         padding: EdgeInsets.symmetric(horizontal: padding, vertical: 10),
         decoration: BoxDecoration(color: b, borderRadius: BorderRadius.circular(999), border: border),
@@ -198,8 +197,7 @@ class CircleButton extends StatelessWidget {
       onTap: onTap,
       enabled: enabled,
       semanticLabel: semanticLabel,
-      child: AnimatedContainer(
-        duration: motion(context, 250),
+      child: Container(
         width: size,
         height: size,
         decoration: BoxDecoration(
@@ -654,8 +652,7 @@ class FilterPill extends StatelessWidget {
         semanticLabel: label,
         child: MediaQuery.withClampedTextScaling(
           maxScaleFactor: 2.0,
-          child: AnimatedContainer(
-            duration: motion(context, 250),
+          child: Container(
             height: 44 * uiScale(context),
             padding: const EdgeInsets.symmetric(horizontal: 22),
             alignment: Alignment.center,
@@ -1082,8 +1079,7 @@ class SelectDot extends StatelessWidget {
   final bool selected;
 
   @override
-  Widget build(BuildContext context) => AnimatedContainer(
-        duration: motion(context, 200),
+  Widget build(BuildContext context) => Container(
         width: 26,
         height: 26,
         decoration: BoxDecoration(
@@ -1119,8 +1115,7 @@ class SegmentedPill extends StatelessWidget {
                   },
                   selected: i == selected,
                   semanticLabel: options[i],
-                  child: AnimatedContainer(
-                    duration: motion(context, 200),
+                  child: Container(
                     constraints: BoxConstraints(minHeight: 44 * uiScale(context)),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
