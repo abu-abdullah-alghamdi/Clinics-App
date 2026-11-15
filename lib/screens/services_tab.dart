@@ -415,8 +415,12 @@ class _CatTile extends StatelessWidget {
   static const _square = 76.0;
   static const _pillH = 46.0;
 
-  /// الصورة داخل الإطار، والفراغ حولها
-  static const _imageBig = 70.0;
+  /// حد الإطار، والحافة البيضاء حول الصورة وهي مربع كبير
+  static const _border = 1.0;
+  static const _gap = 1.0;
+
+  /// الصورة داخل الإطار: كبيرة تعبّيه وحولها حافة بيضاء 1 من كل الجهات، وصغيرة في المستطيل
+  static const _imageBig = _square - 2 * _border - 2 * _gap;
   static const _imageSmall = 34.0;
 
   static double _lerp(double a, double b, double x) => a + (b - a) * x;
@@ -441,10 +445,12 @@ class _CatTile extends StatelessWidget {
     final shrink = k;
     final widen = k;
 
-    final pad = _lerp((_square - _imageBig) / 2, (_pillH - _imageSmall) / 2, shrink);
+    // المسافات تنحسب من داخل الحد، عشان الصورة تكون بالنص بالضبط (قبل كانت مايلة لليسار بمقدار الحد)
+    final pad = _lerp(_gap, (_pillH - 2 * _border - _imageSmall) / 2, shrink);
     final image = _lerp(_imageBig, _imageSmall, shrink);
     final frameH = _lerp(_square, _pillH, shrink);
-    final pillW = pad + _imageSmall + 8 + textW + 16;
+    final innerH = frameH - 2 * _border;
+    final pillW = 2 * _border + pad + _imageSmall + 8 + textW + 16;
     final frameW = _lerp(_square, pillW, widen);
     final radius = _lerp(20, 16, shrink);
     final labelH = 24 * (1 - fadeLabel);
@@ -456,22 +462,22 @@ class _CatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: selected ? AppColors.ink : AppColors.ink.withAlpha(0), width: 1),
+        border: Border.all(color: selected ? AppColors.ink : AppColors.ink.withAlpha(0), width: _border),
       ),
       child: Stack(
         children: [
           // الصورة في بداية الإطار (يمين)
           PositionedDirectional(
             start: pad,
-            top: (frameH - image) / 2 - 1,
+            top: (innerH - image) / 2,
             child: Container(
               width: image,
               height: image,
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: photo == null ? AppColors.accent : AppColors.bg,
-                // مربعة دايماً بزوايا ناعمة (ما تصير دائرية وهي تصغر)
-                borderRadius: BorderRadius.circular(image * 0.24),
+                // مربعة دايماً بزوايا ناعمة تمشي مع زوايا الإطار (ما تصير دائرية وهي تصغر)
+                borderRadius: BorderRadius.circular((radius - _border - pad).clamp(6.0, image * 0.3)),
               ),
               child: photo == null
                   ? Icon(CupertinoIcons.square_grid_2x2_fill, size: image * 0.45, color: AppColors.onAccent)
