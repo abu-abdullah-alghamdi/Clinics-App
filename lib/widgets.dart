@@ -894,30 +894,35 @@ class LargeTitleScroll extends StatelessWidget {
           navLargeTitleTextStyle: ts(36, color: AppColors.title, height: 1.2),
         ),
       ),
-      child: CustomScrollView(
-        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-        slivers: [
-          CupertinoSliverNavigationBar(
-            // العنوان الكبير مساحته ثابتة في شريط آبل، فنحد تكبيره عشان ما ينقص
-            largeTitle: MediaQuery.withClampedTextScaling(
-              maxScaleFactor: 1.2,
-              child: Semantics(header: true, child: Text(title, maxLines: 1)),
+      // الشريط شفاف والعنوان كبير، عشان يبان التدرج وراه، ويصير زجاج بعد ما يصغر العنوان
+      // (نفس لون الخلفية بشفافية صفر، عشان الانتقال ما يمر بلون غامق)
+      child: CupertinoPageScaffoldBackgroundColor(
+        color: AppColors.bg.withAlpha(0),
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+          slivers: [
+            CupertinoSliverNavigationBar(
+              // العنوان الكبير مساحته ثابتة في شريط آبل، فنحد تكبيره عشان ما ينقص
+              largeTitle: MediaQuery.withClampedTextScaling(
+                maxScaleFactor: 1.2,
+                child: Semantics(header: true, child: Text(title, maxLines: 1)),
+              ),
+              trailing: trailing,
+              automaticallyImplyLeading: false,
+              transitionBetweenRoutes: false,
+              backgroundColor: highContrast(context) ? AppColors.bg : AppColors.bg.withValues(alpha: 0.78),
+              border: null,
+              // مسافة تحت سطر الأزرار مثل شريط آبل، عشان الزر ما يلمس حافة الشريط
+              bottom: const PreferredSize(preferredSize: Size.fromHeight(10), child: SizedBox.shrink()),
+              bottomMode: NavigationBarBottomMode.always,
             ),
-            trailing: trailing,
-            automaticallyImplyLeading: false,
-            transitionBetweenRoutes: false,
-            backgroundColor: highContrast(context) ? AppColors.bg : AppColors.bg.withValues(alpha: 0.78),
-            border: null,
-            // مسافة تحت سطر الأزرار مثل شريط آبل، عشان الزر ما يلمس حافة الشريط
-            bottom: const PreferredSize(preferredSize: Size.fromHeight(10), child: SizedBox.shrink()),
-            bottomMode: NavigationBarBottomMode.always,
-          ),
-          if (onRefresh != null) CupertinoSliverRefreshControl(onRefresh: onRefresh),
-          SliverPadding(
-            padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, bottomSpace),
-            sliver: SliverList(delegate: SliverChildListDelegate(children)),
-          ),
-        ],
+            if (onRefresh != null) CupertinoSliverRefreshControl(onRefresh: onRefresh),
+            SliverPadding(
+              padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, bottomSpace),
+              sliver: SliverList(delegate: SliverChildListDelegate(children)),
+            ),
+          ],
+        ),
       ),
     );
   }
