@@ -74,6 +74,18 @@ class _ServicePagerState extends State<ServicePager> {
     _drags.value = [...list]..[i] = v;
   }
 
+  /// وقت السحب لتحت: التبديل يمين ويسار يتوقف، والبطاقة ترجع مكانها بالضبط عشان تنزل بخط مستوي
+  bool _locked = false;
+
+  void _setLocked(bool v) {
+    if (v == _locked) return;
+    setState(() => _locked = v);
+    if (v && _pages.hasClients) {
+      final p = _pages.page;
+      if (p != null && p != p.roundToDouble()) _pages.jumpToPage(p.round());
+    }
+  }
+
   @override
   void dispose() {
     _pages.dispose();
@@ -108,6 +120,7 @@ class _ServicePagerState extends State<ServicePager> {
     final n = widget.items.length;
     return PageView.builder(
       controller: _pages,
+      physics: _locked ? const NeverScrollableScrollPhysics() : null,
       // يبني البطاقة اللي قبل واللي بعد عشان يبان طرفها من الجنب
       allowImplicitScrolling: true,
       itemCount: n,
@@ -119,6 +132,7 @@ class _ServicePagerState extends State<ServicePager> {
           onOpen: _open,
           onProgress: (v) => _setProgress(i, v),
           onDrag: (v) => _setDrag(i, v),
+          onDragging: _setLocked,
         ),
         builder: (context, child) {
           final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? widget.index.toDouble()) : widget.index.toDouble();
@@ -137,8 +151,8 @@ class _ServicePagerState extends State<ServicePager> {
           final shift = (_side + _peek + shrink) * (1 - q);
           final dx = -d * shift * (rtl ? -1 : 1);
           final scale = 1 - d.abs().clamp(0.0, 1.0) * (1 - _neighborScale);
-          // السحب لتحت بالإصبع
-          final drag = _drags.value[i];
+          // السحب لتحت بالإصبع: كل البطاقات تنزل مع بعض بخط مستوي
+          final drag = _drags.value[current];
           return Transform.translate(
             offset: Offset(dx, drag),
             child: Transform.scale(
@@ -161,7 +175,7 @@ class _ServicePagerState extends State<ServicePager> {
 /// بطاقة الخدمة: الصورة وأزرارها، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات،
 /// الخدمات المقترحة، والطلب والسلة تحت
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress, this.onDrag});
+  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress, this.onDrag, this.onDragging});
 
   final Service service;
 
@@ -176,6 +190,9 @@ class ServiceScreen extends StatefulWidget {
 
   /// كم انسحبت البطاقة لتحت بالإصبع (بالنقاط)، عشان اللي يعرضها يحركها
   final ValueChanged<double>? onDrag;
+
+  /// بدأ السحب لتحت أو خلص (عشان يوقف التبديل يمين ويسار وقت السحب)
+  final ValueChanged<bool>? onDragging;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -229,9 +246,11 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
       final atTop = !_scroll.hasClients || _scroll.offset <= 0;
       if (d.dy > 0 && d.dy.abs() > d.dx.abs() && atTop) {
         setState(() => _dragging = true);
+        widget.onDragging?.call(true);
         if (_scroll.hasClients && _scroll.offset != 0) _scroll.jumpTo(0);
       }
     }
+    // ينزل لتحت بس (بدون أي حركة يمين ويسار)
     if (_dragging) _setDrag(_drag + e.delta.dy);
   }
 
@@ -240,6 +259,7 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
     if (!_dragging) return;
     final speed = _velocity?.getVelocity().pixelsPerSecond.dy ?? 0;
     setState(() => _dragging = false);
+    widget.onDragging?.call(false);
     if (_drag > 140 || speed > 900) {
       _close();
     } else if (_drag > 0) {
