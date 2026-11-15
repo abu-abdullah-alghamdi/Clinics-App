@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -59,14 +60,25 @@ class _ServicePagerState extends State<ServicePager> {
   /// كم نزل المستخدم في كل بطاقة (0 = بطاقة، 1 = ملء الشاشة)
   late final ValueNotifier<List<double>> _progress = ValueNotifier(List.filled(widget.items.length, 0.0));
 
-  /// هامش البطاقة من الجنب، وكم يبان من البطاقة اللي جنبها
-  static const _side = 24.0;
-  static const _peek = 22.0;
+  /// هامش البطاقة من الجنب، وكم يبان من البطاقة اللي جنبها، وحجم اللي جنبها
+  static const _side = 15.0;
+  static const _peek = 11.0;
+  static const _neighborScale = 0.93;
+
+  /// كم انسحبت كل بطاقة لتحت بالإصبع
+  late final ValueNotifier<List<double>> _drags = ValueNotifier(List.filled(widget.items.length, 0.0));
+
+  void _setDrag(int i, double v) {
+    final list = _drags.value;
+    if (list[i] == v) return;
+    _drags.value = [...list]..[i] = v;
+  }
 
   @override
   void dispose() {
     _pages.dispose();
     _progress.dispose();
+    _drags.dispose();
     super.dispose();
   }
 
@@ -100,12 +112,13 @@ class _ServicePagerState extends State<ServicePager> {
       allowImplicitScrolling: true,
       itemCount: n,
       itemBuilder: (context, i) => AnimatedBuilder(
-        animation: Listenable.merge([_pages, _progress]),
+        animation: Listenable.merge([_pages, _progress, _drags]),
         child: ServiceScreen(
           service: widget.items[i].service,
           package: widget.items[i].package,
           onOpen: _open,
           onProgress: (v) => _setProgress(i, v),
+          onDrag: (v) => _setDrag(i, v),
         ),
         builder: (context, child) {
           final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? widget.index.toDouble()) : widget.index.toDouble();
@@ -116,19 +129,24 @@ class _ServicePagerState extends State<ServicePager> {
           final q = _progress.value[current];
           final e = _progress.value[i] * near;
           final side = _side * (1 - e);
-          final gap = (top + 10) * (1 - e);
-          // البطاقة اللي جنبها تقرب للنص عشان يبان طرفها
-          final shift = (_side + _peek) * (1 - q);
+          final gap = (top + 4) * (1 - e);
+          final radius = 34 * (1 - e);
+          // البطاقة اللي جنبها أصغر شوي، وتقرب للنص عشان يبان طرفها (ويختفي لما الحالية تملأ الشاشة)
+          final width = MediaQuery.sizeOf(context).width;
+          final shrink = (width - _side * 2) * (1 - _neighborScale) / 2;
+          final shift = (_side + _peek + shrink) * (1 - q);
           final dx = -d * shift * (rtl ? -1 : 1);
+          final scale = 1 - d.abs().clamp(0.0, 1.0) * (1 - _neighborScale);
+          // السحب لتحت بالإصبع
+          final drag = _drags.value[i];
           return Transform.translate(
-            offset: Offset(dx, 0),
+            offset: Offset(dx, drag),
             child: Transform.scale(
-              scale: 1 - d.abs().clamp(0.0, 1.0) * 0.04,
-              alignment: Alignment.bottomCenter,
+              scale: scale,
               child: Padding(
                 padding: EdgeInsets.fromLTRB(side, gap, side, 0),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(30 * (1 - e))),
+                  borderRadius: BorderRadius.circular(radius),
                   child: child,
                 ),
               ),
@@ -143,7 +161,7 @@ class _ServicePagerState extends State<ServicePager> {
 /// بطاقة الخدمة: الصورة وأزرارها، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات،
 /// الخدمات المقترحة، والطلب والسلة تحت
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress});
+  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress, this.onDrag});
 
   final Service service;
 
@@ -156,11 +174,14 @@ class ServiceScreen extends StatefulWidget {
   /// كم نزل في البطاقة (0 إلى 1): البطاقة تكبر معه لين تملأ الشاشة
   final ValueChanged<double>? onProgress;
 
+  /// كم انسحبت البطاقة لتحت بالإصبع (بالنقاط)، عشان اللي يعرضها يحركها
+  final ValueChanged<double>? onDrag;
+
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
 }
 
-class _ServiceScreenState extends State<ServiceScreen> {
+class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProviderStateMixin {
   bool _more = false;
 
   /// الباقة المختارة (null = جلسة وحدة)
@@ -173,6 +194,63 @@ class _ServiceScreenState extends State<ServiceScreen> {
   bool _closing = false;
 
   final _scroll = ScrollController();
+
+  // ───────── سحب البطاقة لتحت مع الإصبع (مثل آبل): تمشي معه، وتوقف لما يوقف،
+  // ولما يرفع إصبعه: لو نزلت كفاية أو سحب بسرعة تقفل، وإلا ترجع مكانها
+
+  double _drag = 0;
+  bool _dragging = false;
+  bool _decided = false;
+  Offset? _downAt;
+  VelocityTracker? _velocity;
+  late final AnimationController _settle = AnimationController.unbounded(vsync: this)
+    ..addListener(() => _setDrag(_settle.value));
+
+  void _setDrag(double v) {
+    _drag = v < 0 ? 0 : v;
+    widget.onDrag?.call(_drag);
+  }
+
+  void _pointerDown(PointerDownEvent e) {
+    _settle.stop();
+    _downAt = e.position;
+    _decided = false;
+    _velocity = VelocityTracker.withKind(e.kind)..addPosition(e.timeStamp, e.position);
+  }
+
+  void _pointerMove(PointerMoveEvent e) {
+    _velocity?.addPosition(e.timeStamp, e.position);
+    final start = _downAt;
+    if (!_decided && start != null) {
+      final d = e.position - start;
+      if (d.distance < 6) return;
+      _decided = true;
+      // يبدأ السحب بس لو الحركة لتحت (مو يمين ويسار) والبطاقة في أعلاها
+      final atTop = !_scroll.hasClients || _scroll.offset <= 0;
+      if (d.dy > 0 && d.dy.abs() > d.dx.abs() && atTop) {
+        setState(() => _dragging = true);
+        if (_scroll.hasClients && _scroll.offset != 0) _scroll.jumpTo(0);
+      }
+    }
+    if (_dragging) _setDrag(_drag + e.delta.dy);
+  }
+
+  void _pointerEnd(PointerEvent e) {
+    _downAt = null;
+    if (!_dragging) return;
+    final speed = _velocity?.getVelocity().pixelsPerSecond.dy ?? 0;
+    setState(() => _dragging = false);
+    if (_drag > 140 || speed > 900) {
+      _close();
+    } else if (_drag > 0) {
+      _settle.value = _drag;
+      if (MediaQuery.disableAnimationsOf(context)) {
+        _settle.value = 0;
+      } else {
+        _settle.animateTo(0, duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic);
+      }
+    }
+  }
 
   /// 0 = أعلى البطاقة، 1 = نزل (يطلع الشريط الصغير فوق: الصورة والاسم والسعر)
   final _down = ValueNotifier<double>(0);
@@ -191,6 +269,7 @@ class _ServiceScreenState extends State<ServiceScreen> {
   void dispose() {
     _scroll.dispose();
     _down.dispose();
+    _settle.dispose();
     super.dispose();
   }
 
@@ -270,39 +349,38 @@ class _ServiceScreenState extends State<ServiceScreen> {
         child: Column(
           children: [
             Expanded(
-              child: NotificationListener<ScrollUpdateNotification>(
-                // السحب لتحت وهو في أعلى البطاقة يقفلها
-                onNotification: (n) {
-                  if (n.dragDetails != null && n.metrics.pixels < -80) _close();
-                  return false;
-                },
+              // السحب لتحت وهو في أعلى البطاقة ينزّلها مع الإصبع (مثل نوافذ آبل)، ويقفلها لو نزلت كفاية
+              child: Listener(
+                onPointerDown: _pointerDown,
+                onPointerMove: _pointerMove,
+                onPointerUp: _pointerEnd,
+                onPointerCancel: _pointerEnd,
                 child: Stack(
                 children: [
                 ListView(
                 controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
-                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+                padding: const EdgeInsets.only(bottom: 20),
+                physics: _dragging ? const NeverScrollableScrollPhysics() : const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 children: [
                   // صورة الخدمة، والإغلاق والمفضلة والمشاركة فوقها
                   Stack(
                     children: [
                       ExcludeSemantics(
                         child: Container(
-                          height: 300,
+                          height: 330,
                           width: double.infinity,
-                          clipBehavior: Clip.antiAlias,
-                          decoration: BoxDecoration(color: sv.tint, borderRadius: BorderRadius.circular(30)),
+                          color: sv.tint,
                           child: Image.asset(sv.photo, fit: BoxFit.cover),
                         ),
                       ),
                       PositionedDirectional(
-                        top: 12,
-                        start: 12,
+                        top: 14,
+                        start: 14,
                         child: _round(CupertinoIcons.xmark, 'إغلاق', _close),
                       ),
                       PositionedDirectional(
-                        top: 12,
-                        end: 12,
+                        top: 14,
+                        end: 14,
                         child: Column(
                           children: [
                             _round(
@@ -322,20 +400,28 @@ class _ServiceScreenState extends State<ServiceScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 18),
+                  // باقي البطاقة بهامش من الجنبين
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                  const SizedBox(height: 14),
+                  // الاسم والتوفر والتقييم والسعر في بطاقة بيضاء
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(28)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Semantics(header: true, child: Text(sv.name, style: ts(28, height: 1.25))),
+                        Semantics(header: true, child: Text(sv.name, style: ts(26, height: 1.25))),
                         const SizedBox(height: 10),
                         // التوفر في الفروع: كبسولة صغيرة
                         Align(
                           alignment: AlignmentDirectional.centerStart,
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(999)),
+                            decoration: BoxDecoration(color: AppColors.bg, borderRadius: BorderRadius.circular(999)),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -482,6 +568,9 @@ class _ServiceScreenState extends State<ServiceScreen> {
                         );
                       },
                     ),
+                  ),
+                  ],
+                  ),
                   ),
                 ],
               ),
