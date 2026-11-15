@@ -200,7 +200,7 @@ class _ServicePagerState extends State<ServicePager> {
               top: top + 18 - 10 * q + _drags.value[current],
               left: _side * (1 - q) + 14,
               right: _side * (1 - q) + 14,
-              child: ServiceButtons(service: widget.items[current].service),
+              child: ServiceButtons(service: widget.items[current].service, native: q < 0.35),
             );
           },
         ),
@@ -211,10 +211,14 @@ class _ServicePagerState extends State<ServicePager> {
 
 /// أزرار بطاقة الخدمة من آبل: الرجوع (إغلاق)، والمفضلة والمشاركة في قطعة زجاج وحدة
 class ServiceButtons extends StatelessWidget {
-  const ServiceButtons({super.key, required this.service, this.onClose});
+  const ServiceButtons({super.key, required this.service, this.onClose, this.native = true});
 
   final Service service;
   final VoidCallback? onClose;
+
+  /// أزرار آبل الأصلية. فوق الشريط المغبّش ترجع مرسومة من التطبيق، لأن زر آبل فوق
+  /// تغبيش التطبيق كان يطلع وراه مربع فاضي
+  final bool native;
 
   @override
   Widget build(BuildContext context) {
@@ -223,11 +227,12 @@ class ServiceButtons extends StatelessWidget {
     final fav = s.favServices.contains(sv.id);
     return Row(
       children: [
-        BackCircle(close: true, onTap: onClose),
+        BackCircle(close: true, onTap: onClose, native: native),
         const Spacer(),
         Builder(
           builder: (ctx) => AppleButtonGroup(
             id: 'service-${sv.id}',
+            native: native,
             buttons: [
               AppleIconButton(
                 symbol: fav ? 'heart.fill' : 'heart',
@@ -693,7 +698,10 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
                     top: 14 + MediaQuery.paddingOf(context).top,
                     left: 14,
                     right: 14,
-                    child: ServiceButtons(service: sv, onClose: _close),
+                    child: ValueListenableBuilder<double>(
+                      valueListenable: _down,
+                      builder: (context, v, _) => ServiceButtons(service: sv, onClose: _close, native: v < 0.35),
+                    ),
                   ),
                 ],
               )),

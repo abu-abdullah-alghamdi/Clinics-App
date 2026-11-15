@@ -34,7 +34,7 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
   final Map<String, GlobalKey> _keys = {};
 
   /// 0 = مربعات كبيرة، 1 = كبسولات (تتحرك بحركة وحدة سريعة مثل المثال، مو مع الإصبع)
-  late final AnimationController _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
+  late final AnimationController _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 250));
 
   /// ترتيب الأقسام الظاهرة، والقسم اللي يقرأه الحين (الخط تحته)
   List<String> _order = const [];
@@ -144,8 +144,6 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
     // كل البطاقات بترتيب الصفحة (للسحب يمين ويسار بين الخدمات)
     final all = [for (final x in sections) ...x.$3];
     final top = MediaQuery.paddingOf(context).top;
-    final tint = Color.alphaBlend(AppColors.accent.withAlpha(46), AppColors.bg);
-    final fadeSpan = top + 440;
     final bottom = navBottomSpace + (s.cartCount > 0 ? cartBarSpace * uiScale(context).clamp(1.0, 1.6) : 0) + 10;
 
     // طول الشريط اللي فوق (يتغيّر مع حركة المربعات)
@@ -191,20 +189,6 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
 
     return Stack(
       children: [
-        // التدرج بلون العيادة: فاتح جداً فوق، ويختفي لين لون خلفية التطبيق
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: fadeSpan,
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [tint, AppColors.bg]),
-              ),
-            ),
-          ),
-        ),
         // الخدمات تمر تحت الشريط اللي فوق (مثل آبل)، ومسافة أولها بطول الشريط
         CustomScrollView(
           controller: _scroll,

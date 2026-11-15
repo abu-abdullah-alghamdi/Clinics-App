@@ -213,10 +213,13 @@ class CircleButton extends StatelessWidget {
 
 /// زر الرجوع (السهم يتبع اتجاه العربي تلقائياً) أو الإغلاق في النوافذ المنبثقة
 class BackCircle extends StatelessWidget {
-  const BackCircle({super.key, this.onTap, this.close = false});
+  const BackCircle({super.key, this.onTap, this.close = false, this.native = true});
 
   final VoidCallback? onTap;
   final bool close;
+
+  /// زر آبل الأصلي (false = نفس الشكل مرسوم من التطبيق)
+  final bool native;
 
   @override
   Widget build(BuildContext context) => AppleIconButton(
@@ -224,9 +227,28 @@ class BackCircle extends StatelessWidget {
         symbol: close ? 'xmark' : 'chevron.right',
         fallback: close ? CupertinoIcons.xmark : CupertinoIcons.back,
         label: close ? 'إغلاق' : 'رجوع',
+        native: native,
         onTap: onTap ?? () => Navigator.of(context).maybePop(),
       );
 }
+
+/// لون أعلى الصفحات: لون العيادة فاتح جداً، ويختفي لين لون خلفية التطبيق
+Color get pageTint => Color.alphaBlend(AppColors.accent.withAlpha(46), AppColors.bg);
+
+/// التدرج اللي ورا أعلى الصفحات (بطول 440 تحت شريط الحالة)
+Widget pageGradient(BuildContext context) => Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      height: MediaQuery.paddingOf(context).top + 440,
+      child: IgnorePointer(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [pageTint, AppColors.bg]),
+          ),
+        ),
+      ),
+    );
 
 /// زجاج آبل الحقيقي متاح (iOS 26 وأحدث)
 bool get nativeGlass => defaultTargetPlatform == TargetPlatform.iOS && PlatformVersion.shouldUseNativeControls;
@@ -245,7 +267,11 @@ class AppleIconButton extends StatelessWidget {
     this.tint,
     this.iconColor,
     this.badge,
+    this.native = true,
   });
+
+  /// زر آبل الأصلي (false = نفس الشكل مرسوم من التطبيق، مثلاً فوق زجاج مغبّش من التطبيق)
+  final bool native;
 
   /// اسم أيقونة آبل (SF Symbol)
   final String symbol;
@@ -268,7 +294,7 @@ class AppleIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final count = badge == null || badge == 0 ? null : badge;
     final iconColor = this.iconColor ?? (prominent ? fgOn(tint ?? AppColors.accent) : AppColors.ink);
-    if (nativeGlass) {
+    if (nativeGlass && native) {
       return CNButton.icon(
         icon: CNSymbol(symbol, size: 19, color: iconColor),
         tint: tint,
@@ -319,21 +345,62 @@ class AppleIconButton extends StatelessWidget {
 
 /// أزرار من آبل تتشارك قطعة زجاج وحدة (مثل المشاركة والمفضلة)
 class AppleButtonGroup extends StatelessWidget {
-  const AppleButtonGroup({super.key, required this.buttons, required this.id});
+  const AppleButtonGroup({super.key, required this.buttons, required this.id, this.native = true});
 
   final List<AppleIconButton> buttons;
+
+  /// أزرار آبل الأصلية (false = نفس الشكل مرسوم من التطبيق: كبسولة زجاج وحدة)
+  final bool native;
 
   /// اسم المجموعة (لازم يكون مميز في الصفحة)
   final String id;
 
   @override
   Widget build(BuildContext context) {
-    if (!nativeGlass) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final b in buttons) ...[if (b != buttons.first) const SizedBox(width: 8), b],
-        ],
+    if (!nativeGlass || !native) {
+      // كبسولة زجاج وحدة فيها الأزرار (مربوطة مع بعض مثل آبل)
+      final solid = highContrast(context);
+      return Container(
+        height: GlassCircle.barSize,
+        decoration: const BoxDecoration(
+          borderRadius: BorderRadius.all(Radius.circular(999)),
+          boxShadow: [BoxShadow(color: Color(0x1F000000), blurRadius: 14, offset: Offset(0, 4))],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(999),
+                color: solid ? AppColors.white : null,
+                gradient: solid
+                    ? null
+                    : const LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Color(0xB8FFFFFF), Color(0x80FFFFFF)],
+                      ),
+                border: Border.all(color: solid ? AppColors.ink : const Color(0xCCFFFFFF), width: solid ? 1.5 : 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final b in buttons)
+                    Pressable(
+                      onTap: b.onTap,
+                      semanticLabel: b.label,
+                      child: SizedBox(
+                        width: GlassCircle.barSize + 4,
+                        height: GlassCircle.barSize,
+                        child: Icon(b.fallback, size: 19, color: b.iconColor ?? AppColors.ink),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
       );
     }
     return Semantics(

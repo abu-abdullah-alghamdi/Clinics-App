@@ -47,6 +47,8 @@ class _MainShellState extends State<MainShell> {
     return Scaffold(
       body: Stack(
         children: [
+          // الخلفية المتدرجة بلون العيادة أعلى كل الصفحات الخمس
+          pageGradient(context),
           Positioned.fill(
             child: IndexedStack(
               index: s.tab,
@@ -74,7 +76,7 @@ class _MainShellState extends State<MainShell> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [AppColors.bg.withAlpha(225), AppColors.bg.withAlpha(150), AppColors.bg.withAlpha(0)],
+                    colors: [pageTint.withAlpha(225), pageTint.withAlpha(150), pageTint.withAlpha(0)],
                     stops: const [0, 0.55, 1],
                   ),
                 ),
