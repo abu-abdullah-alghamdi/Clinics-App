@@ -724,10 +724,10 @@ class FilterPill extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 22),
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: selected ? AppColors.ink : AppColors.white,
+              color: selected ? AppColors.accent : AppColors.white,
               borderRadius: BorderRadius.circular(999),
             ),
-            child: Text(label, style: ts(16, color: selected ? AppColors.white : AppColors.ink)),
+            child: Text(label, style: ts(16, color: selected ? AppColors.onAccent : AppColors.ink)),
           ),
         ),
       );
@@ -1218,10 +1218,10 @@ class SegmentedPill extends StatelessWidget {
                     constraints: BoxConstraints(minHeight: 44 * uiScale(context)),
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: i == selected ? AppColors.ink : Colors.transparent,
+                      color: i == selected ? AppColors.accent : Colors.transparent,
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(options[i], style: ts(16, weight: FontWeight.w500, color: i == selected ? AppColors.white : AppColors.ink)),
+                    child: Text(options[i], style: ts(16, weight: FontWeight.w500, color: i == selected ? AppColors.onAccent : AppColors.ink)),
                   ),
                 ),
               ),

@@ -182,10 +182,10 @@ Future<void> showRatingSheet(BuildContext context, Booking b, {int stars = 5}) {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
                         decoration: BoxDecoration(
-                          color: picked.contains(t) ? AppColors.ink : AppColors.bg,
+                          color: picked.contains(t) ? AppColors.accent : AppColors.bg,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text(t, style: ts(14, weight: FontWeight.w500, color: picked.contains(t) ? AppColors.white : AppColors.ink)),
+                        child: Text(t, style: ts(14, weight: FontWeight.w500, color: picked.contains(t) ? AppColors.onAccent : AppColors.ink)),
                       ),
                     ),
                 ],

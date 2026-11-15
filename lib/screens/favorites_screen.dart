@@ -35,12 +35,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               constraints: const BoxConstraints(minHeight: 54),
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: _tab == i ? AppColors.ink : Colors.transparent,
+                color: _tab == i ? AppColors.accent : Colors.transparent,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
                 label,
-                style: ts(16, weight: FontWeight.w500, color: _tab == i ? AppColors.white : AppColors.ink),
+                style: ts(16, weight: FontWeight.w500, color: _tab == i ? AppColors.onAccent : AppColors.ink),
               ),
             ),
           ),
