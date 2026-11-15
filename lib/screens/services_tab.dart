@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -13,7 +15,6 @@ import '../theme.dart';
 import '../widgets.dart';
 import 'cart_screen.dart';
 import 'request_screen.dart';
-import 'search_screen.dart';
 import 'service_screen.dart';
 import 'shell.dart';
 
@@ -84,13 +85,15 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
 
   GlobalKey _key(String id) => _keys.putIfAbsent(id, GlobalKey.new);
 
-  /// مكان القسم في الصفحة (عنوانه في أعلى القائمة)
+  /// مكان القسم في الصفحة (عنوانه تحت الشريط اللي فوق مباشرة)
   double? _offsetOf(String id) {
     final box = _keys[id]?.currentContext?.findRenderObject();
     if (box == null) return null;
     final viewport = RenderAbstractViewport.maybeOf(box);
     if (viewport == null) return null;
-    return viewport.getOffsetToReveal(box, 0).offset;
+    // الشريط اللي فوق يغطي أول القائمة (وهو مصغّر وقت القراءة)
+    final header = MediaQuery.paddingOf(context).top + _bar + _tilesMin + _tabs;
+    return viewport.getOffsetToReveal(box, 0).offset - header;
   }
 
   /// الخط تحت القسم يمشي مع القسم اللي يقرأه
@@ -145,6 +148,10 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
     final fadeSpan = top + 440;
     final bottom = navBottomSpace + (s.cartCount > 0 ? cartBarSpace * uiScale(context).clamp(1.0, 1.6) : 0) + 10;
 
+    // طول الشريط اللي فوق (يتغيّر مع حركة المربعات)
+    double headerHeight(double t) =>
+        top + _bar + _tilesMax - (_tilesMax - _tilesMin) * Curves.easeInOutCubic.transform(t) + _tabs;
+
     var base = 0;
     final slivers = <Widget>[];
     for (final (id, label, items) in sections) {
@@ -198,43 +205,50 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
             ),
           ),
         ),
-        Column(
-          children: [
-            AnimatedBuilder(
-              animation: _collapse,
-              builder: (context, _) => _ServicesHeader(
-                t: _collapse.value,
-                top: top,
-                bar: _bar,
-                tilesMax: _tilesMax,
-                tilesMin: _tilesMin,
-                tabs: _tabs,
-                cat: s.serviceCatFilter,
-                onCat: _pickCat,
-                sections: [for (final x in sections) (x.$1, x.$2)],
-                section: _section,
-                onSection: _goTo,
-                cartCount: s.cartCount,
+        // الخدمات تمر تحت الشريط اللي فوق (مثل آبل)، ومسافة أولها بطول الشريط
+        CustomScrollView(
+          controller: _scroll,
+          cacheExtent: 4000,
+          slivers: [
+            SliverToBoxAdapter(
+              child: AnimatedBuilder(
+                animation: _collapse,
+                builder: (context, _) => SizedBox(height: headerHeight(_collapse.value)),
               ),
             ),
-            Expanded(
-              child: CustomScrollView(
-                controller: _scroll,
-                cacheExtent: 4000,
-                slivers: [
-                  ...slivers,
-                  if (sections.isEmpty)
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(40),
-                        child: Text('ما فيه خدمات', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
-                      ),
-                    ),
-                  SliverToBoxAdapter(child: SizedBox(height: bottom)),
-                ],
+            ...slivers,
+            if (sections.isEmpty)
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(40),
+                  child: Text('ما فيه خدمات', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
+                ),
               ),
-            ),
+            SliverToBoxAdapter(child: SizedBox(height: bottom)),
           ],
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: AnimatedBuilder(
+            animation: Listenable.merge([_collapse, _scroll]),
+            builder: (context, _) => _ServicesHeader(
+              t: _collapse.value,
+              glass: _scroll.hasClients ? (_scroll.offset / 16).clamp(0.0, 1.0) : 0,
+              top: top,
+              bar: _bar,
+              tilesMax: _tilesMax,
+              tilesMin: _tilesMin,
+              tabs: _tabs,
+              cat: s.serviceCatFilter,
+              onCat: _pickCat,
+              sections: [for (final x in sections) (x.$1, x.$2)],
+              section: _section,
+              onSection: _goTo,
+              cartCount: s.cartCount,
+            ),
+          ),
         ),
       ],
     );
@@ -248,6 +262,7 @@ const _catPhoto = {'dental': 's1', 'ortho': 's5', 'derma': 's6', 'laser': 's7'};
 class _ServicesHeader extends StatelessWidget {
   const _ServicesHeader({
     required this.t,
+    required this.glass,
     required this.top,
     required this.bar,
     required this.tilesMax,
@@ -263,6 +278,9 @@ class _ServicesHeader extends StatelessWidget {
 
   /// 0 = مربعات كبيرة، 1 = كبسولات
   final double t;
+
+  /// زجاج آبل ورا الشريط (0 = شفاف فوق، 1 = المحتوى يمر تحته)
+  final double glass;
   final double top, bar, tilesMax, tilesMin, tabs;
   final String? cat;
   final ValueChanged<String?> onCat;
@@ -273,8 +291,8 @@ class _ServicesHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final strip = tilesMax - (tilesMax - tilesMin) * t;
-    return MediaQuery.withClampedTextScaling(
+    final strip = tilesMax - (tilesMax - tilesMin) * Curves.easeInOutCubic.transform(t);
+    final content = MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
       child: Column(
         children: [
@@ -285,6 +303,15 @@ class _ServicesHeader extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14),
               child: Row(
                 children: [
+                  // مكان فاضي بنفس عرض زر السلة عشان العنوان يبقى في النص
+                  const SizedBox(width: GlassCircle.barSize),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text('الخدمات', textAlign: TextAlign.center, style: ts(20, weight: FontWeight.w600)),
+                    ),
+                  ),
+                  // السلة على اليسار
                   AppleIconButton(
                     symbol: 'bag',
                     fallback: CupertinoIcons.bag,
@@ -293,19 +320,6 @@ class _ServicesHeader extends StatelessWidget {
                     tint: AppColors.accent,
                     badge: cartCount,
                     onTap: () => Navigator.of(context).push(iosRoute(const CartScreen())),
-                  ),
-                  Expanded(
-                    child: Semantics(
-                      header: true,
-                      child: Text('الخدمات', textAlign: TextAlign.center, style: ts(20, weight: FontWeight.w600)),
-                    ),
-                  ),
-                  CircleButton(
-                    icon: CupertinoIcons.search,
-                    size: 44,
-                    bg: AppColors.white,
-                    semanticLabel: 'بحث',
-                    onTap: () => Navigator.of(context).push(iosRoute(const SearchScreen())),
                   ),
                 ],
               ),
@@ -380,6 +394,19 @@ class _ServicesHeader extends StatelessWidget {
         ],
       ),
     );
+    // مثل شريط آبل: شفاف وهو في أعلى الصفحة، ولما تمر الخدمات تحته يصير زجاج مغبّش بخط رفيع تحته
+    return ClipRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 24 * glass, sigmaY: 24 * glass),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.bg.withAlpha((190 * glass).round()),
+            border: Border(bottom: BorderSide(color: AppColors.ink.withAlpha((26 * glass).round()), width: 0.5)),
+          ),
+          child: content,
+        ),
+      ),
+    );
   }
 }
 
@@ -410,8 +437,6 @@ class _CatTile extends StatelessWidget {
 
   static double _lerp(double a, double b, double x) => a + (b - a) * x;
 
-  /// جزء من الحركة: من [from] إلى [to] (قبلها 0 وبعدها 1)
-  static double _phase(double t, double from, double to) => Curves.easeInOut.transform(((t - from) / (to - from)).clamp(0.0, 1.0));
 
   @override
   Widget build(BuildContext context) {
@@ -425,17 +450,19 @@ class _CatTile extends StatelessWidget {
     final textW = tp.width;
     tp.dispose();
 
-    // المراحل: الاسم اللي تحت يختفي أول، والإطار يقصر والصورة تصغر، وبعدها الإطار يتمدد ويطلع الاسم داخله
-    final fadeLabel = _phase(t, 0, 0.3);
-    final shrink = _phase(t, 0, 0.6);
-    final widen = _phase(t, 0.3, 1);
+    // حركة وحدة سلسة: الصورة تصغر وتنسحب لليمين، والإطار يقصر ويتمدد لليسار ويطلع الاسم داخله بنفس الوقت.
+    // والاسم اللي تحت المربع يختفي في أول الحركة
+    final k = Curves.easeInOutCubic.transform(t);
+    final fadeLabel = (k / 0.4).clamp(0.0, 1.0);
+    final shrink = k;
+    final widen = k;
 
     final pad = _lerp((_square - _imageBig) / 2, (_pillH - _imageSmall) / 2, shrink);
     final image = _lerp(_imageBig, _imageSmall, shrink);
     final frameH = _lerp(_square, _pillH, shrink);
     final pillW = pad + _imageSmall + 8 + textW + 16;
     final frameW = _lerp(_square, pillW, widen);
-    final radius = _lerp(20, _pillH / 2, shrink);
+    final radius = _lerp(20, 16, shrink);
     final labelH = 24 * (1 - fadeLabel);
 
     final frame = Container(
@@ -459,7 +486,8 @@ class _CatTile extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: photo == null ? AppColors.accent : AppColors.bg,
-                borderRadius: BorderRadius.circular(_lerp(17, image / 2, shrink)),
+                // مربعة دايماً بزوايا ناعمة (ما تصير دائرية وهي تصغر)
+                borderRadius: BorderRadius.circular(image * 0.24),
               ),
               child: photo == null
                   ? Icon(CupertinoIcons.square_grid_2x2_fill, size: image * 0.45, color: AppColors.onAccent)
@@ -613,7 +641,7 @@ class RatingRow extends StatelessWidget {
       );
 }
 
-/// زر السلة على بطاقة الخدمة: + يضيفها، وصح يعني إنها في السلة (والضغط يشيلها)
+/// زر السلة على بطاقة الخدمة (مربع): + يضيفها، وصح يعني إنها في السلة (والضغط يشيلها)
 class CartCircle extends StatelessWidget {
   const CartCircle({super.key, required this.service, this.packageId});
 
@@ -627,17 +655,23 @@ class CartCircle extends StatelessWidget {
     final s = AppScope.of(context);
     final entry = s.cartEntry(service.id, packageId: packageId);
     final added = entry != null;
-    return CircleButton(
-      icon: added ? Icons.check_rounded : Icons.add_rounded,
-      size: 44,
-      iconSize: 24,
-      bg: added ? AppColors.ink : AppColors.accent,
-      fg: added ? AppColors.white : AppColors.onAccent,
-      semanticLabel: added ? 'إزالة ${service.name} من السلة' : 'أضف ${service.name} للسلة',
+    // مربع بزوايا ناعمة (مو دائرة)
+    return Pressable(
       onTap: () {
         HapticFeedback.lightImpact();
         added ? s.removeFromCart(entry) : s.addToCart(service.id, packageId: packageId);
       },
+      semanticLabel: added ? 'إزالة ${service.name} من السلة' : 'أضف ${service.name} للسلة',
+      child: Container(
+        width: 40,
+        height: 40,
+        decoration: BoxDecoration(
+          color: added ? AppColors.ink : AppColors.accent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: const [BoxShadow(color: Color(0x1F000000), blurRadius: 8, offset: Offset(0, 2))],
+        ),
+        child: Icon(added ? Icons.check_rounded : Icons.add_rounded, size: 24, color: added ? AppColors.white : AppColors.onAccent),
+      ),
     );
   }
 }

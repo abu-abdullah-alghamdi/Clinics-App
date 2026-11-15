@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -55,40 +57,36 @@ class ServicePager extends StatefulWidget {
 }
 
 class _ServicePagerState extends State<ServicePager> {
-  late final PageController _pages = PageController(initialPage: widget.index);
+  /// عرض الصفحة أقل من الشاشة بهامش البطاقة، فالبطاقات اللي جنبها يبان طرفها فعلاً
+  PageController? _controller;
+  PageController get _pages => _controller!;
 
   /// كم نزل المستخدم في كل بطاقة (0 = بطاقة، 1 = ملء الشاشة)
   late final ValueNotifier<List<double>> _progress = ValueNotifier(List.filled(widget.items.length, 0.0));
 
-  /// هامش البطاقة من الجنب، وكم يبان من البطاقة اللي جنبها، وحجم اللي جنبها
-  static const _side = 15.0;
-  static const _peek = 11.0;
-  static const _neighborScale = 0.93;
-
   /// كم انسحبت كل بطاقة لتحت بالإصبع
   late final ValueNotifier<List<double>> _drags = ValueNotifier(List.filled(widget.items.length, 0.0));
 
-  void _setDrag(int i, double v) {
-    final list = _drags.value;
-    if (list[i] == v) return;
-    _drags.value = [...list]..[i] = v;
-  }
+  /// هامش البطاقة من الجنب، وكم يبان من البطاقة اللي جنبها، وحجم اللي جنبها
+  static const _side = 15.0;
+  static const _peek = 10.0;
+  static const _neighborScale = 0.93;
 
   /// وقت السحب لتحت: التبديل يمين ويسار يتوقف، والبطاقة ترجع مكانها بالضبط عشان تنزل بخط مستوي
   bool _locked = false;
 
-  void _setLocked(bool v) {
-    if (v == _locked) return;
-    setState(() => _locked = v);
-    if (v && _pages.hasClients) {
-      final p = _pages.page;
-      if (p != null && p != p.roundToDouble()) _pages.jumpToPage(p.round());
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_controller == null) {
+      final width = MediaQuery.sizeOf(context).width;
+      _controller = PageController(initialPage: widget.index, viewportFraction: (width - _side * 2) / width);
     }
   }
 
   @override
   void dispose() {
-    _pages.dispose();
+    _controller?.dispose();
     _progress.dispose();
     _drags.dispose();
     super.dispose();
@@ -99,6 +97,24 @@ class _ServicePagerState extends State<ServicePager> {
     if ((list[i] - v).abs() < 0.002) return;
     _progress.value = [...list]..[i] = v;
   }
+
+  void _setDrag(int i, double v) {
+    final list = _drags.value;
+    if (list[i] == v) return;
+    _drags.value = [...list]..[i] = v;
+  }
+
+  void _setLocked(bool v) {
+    if (v == _locked) return;
+    setState(() => _locked = v);
+    if (v && _pages.hasClients) {
+      final p = _pages.page;
+      if (p != null && p != p.roundToDouble()) _pages.jumpToPage(p.round());
+    }
+  }
+
+  double get _page =>
+      _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? widget.index.toDouble()) : widget.index.toDouble();
 
   /// خدمة من "خدمات مقترحة لك": لو موجودة في البطاقات ينتقل لها، وإلا يفتح بطاقاتها فوق
   void _open(List<Service> list, int i) {
@@ -116,58 +132,123 @@ class _ServicePagerState extends State<ServicePager> {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
+    final width = MediaQuery.sizeOf(context).width;
+    final pageW = width - _side * 2;
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final n = widget.items.length;
-    return PageView.builder(
-      controller: _pages,
-      physics: _locked ? const NeverScrollableScrollPhysics() : null,
-      // يبني البطاقة اللي قبل واللي بعد عشان يبان طرفها من الجنب
-      allowImplicitScrolling: true,
-      itemCount: n,
-      itemBuilder: (context, i) => AnimatedBuilder(
-        animation: Listenable.merge([_pages, _progress, _drags]),
-        child: ServiceScreen(
-          service: widget.items[i].service,
-          package: widget.items[i].package,
-          onOpen: _open,
-          onProgress: (v) => _setProgress(i, v),
-          onDrag: (v) => _setDrag(i, v),
-          onDragging: _setLocked,
-        ),
-        builder: (context, child) {
-          final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? widget.index.toDouble()) : widget.index.toDouble();
-          final d = i - page;
-          final near = (1 - d.abs()).clamp(0.0, 1.0);
-          final current = page.round().clamp(0, n - 1);
-          // البطاقة الحالية لما ينزل فيها تكبر لين تملأ الشاشة، واللي جنبها تختفي
-          final q = _progress.value[current];
-          final e = _progress.value[i] * near;
-          final side = _side * (1 - e);
-          final gap = (top + 4) * (1 - e);
-          final radius = 34 * (1 - e);
-          // البطاقة اللي جنبها أصغر شوي، وتقرب للنص عشان يبان طرفها (ويختفي لما الحالية تملأ الشاشة)
-          final width = MediaQuery.sizeOf(context).width;
-          final shrink = (width - _side * 2) * (1 - _neighborScale) / 2;
-          final shift = (_side + _peek + shrink) * (1 - q);
-          final dx = -d * shift * (rtl ? -1 : 1);
-          final scale = 1 - d.abs().clamp(0.0, 1.0) * (1 - _neighborScale);
-          // السحب لتحت بالإصبع: كل البطاقات تنزل مع بعض بخط مستوي
-          final drag = _drags.value[current];
-          return Transform.translate(
-            offset: Offset(dx, drag),
-            child: Transform.scale(
-              scale: scale,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(side, gap, side, 0),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(radius),
-                  child: child,
-                ),
-              ),
+    // البطاقة اللي جنبها تصغر من النص، فطرفها يبعد بهالمقدار
+    final shrink = pageW * (1 - _neighborScale) / 2;
+    final inward = shrink + _peek - _side;
+
+    return Stack(
+      children: [
+        PageView.builder(
+          controller: _pages,
+          physics: _locked ? const NeverScrollableScrollPhysics() : null,
+          allowImplicitScrolling: true,
+          itemCount: n,
+          itemBuilder: (context, i) => AnimatedBuilder(
+            animation: Listenable.merge([_pages, _progress, _drags]),
+            child: ServiceScreen(
+              service: widget.items[i].service,
+              package: widget.items[i].package,
+              onOpen: _open,
+              onProgress: (v) => _setProgress(i, v),
+              onDrag: (v) => _setDrag(i, v),
+              onDragging: _setLocked,
+              showButtons: false,
             ),
-          );
-        },
-      ),
+            builder: (context, child) {
+              final page = _page;
+              final d = i - page;
+              final near = (1 - d.abs()).clamp(0.0, 1.0);
+              final current = page.round().clamp(0, n - 1);
+              // البطاقة الحالية لما ينزل فيها تكبر لين تملأ الشاشة، واللي جنبها تبعد وتختفي
+              final q = _progress.value[current];
+              final e = _progress.value[i] * near;
+              final gap = (top + 4) * (1 - e);
+              final radius = 34 * (1 - e);
+              final pull = inward * (1 - q) - (_side + 4) * q;
+              final dx = -d * pull * (rtl ? -1 : 1);
+              final scale = 1 - d.abs().clamp(0.0, 1.0) * (1 - _neighborScale);
+              // السحب لتحت بالإصبع: كل البطاقات تنزل مع بعض بخط مستوي
+              final drag = _drags.value[current];
+              return Transform.translate(
+                offset: Offset(dx, drag),
+                child: Transform.scale(
+                  scale: scale,
+                  child: OverflowBox(
+                    minWidth: pageW + _side * 2 * e,
+                    maxWidth: pageW + _side * 2 * e,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: gap),
+                      child: ClipRRect(borderRadius: BorderRadius.circular(radius), child: child),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        // أزرار آبل الثابتة فوق البطاقة الحالية: الرجوع، والمفضلة والمشاركة مع بعض
+        AnimatedBuilder(
+          animation: Listenable.merge([_pages, _progress, _drags]),
+          builder: (context, _) {
+            final current = _page.round().clamp(0, n - 1);
+            final q = _progress.value[current];
+            return Positioned(
+              top: top + 18 - 10 * q + _drags.value[current],
+              left: _side * (1 - q) + 14,
+              right: _side * (1 - q) + 14,
+              child: ServiceButtons(service: widget.items[current].service),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// أزرار بطاقة الخدمة من آبل: الرجوع (إغلاق)، والمفضلة والمشاركة في قطعة زجاج وحدة
+class ServiceButtons extends StatelessWidget {
+  const ServiceButtons({super.key, required this.service, this.onClose});
+
+  final Service service;
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = AppScope.of(context);
+    final sv = service;
+    final fav = s.favServices.contains(sv.id);
+    return Row(
+      children: [
+        BackCircle(close: true, onTap: onClose),
+        const Spacer(),
+        Builder(
+          builder: (ctx) => AppleButtonGroup(
+            id: 'service-${sv.id}',
+            buttons: [
+              AppleIconButton(
+                symbol: fav ? 'heart.fill' : 'heart',
+                fallback: fav ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                label: fav ? 'إزالة ${sv.name} من المفضلة' : 'إضافة ${sv.name} للمفضلة',
+                iconColor: fav ? AppColors.red : null,
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  s.toggleFavService(sv.id);
+                },
+              ),
+              AppleIconButton(
+                symbol: 'square.and.arrow.up',
+                fallback: CupertinoIcons.share,
+                label: 'مشاركة الخدمة',
+                onTap: () => shareText(ctx, shareServiceText(sv)),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -175,7 +256,7 @@ class _ServicePagerState extends State<ServicePager> {
 /// بطاقة الخدمة: الصورة وأزرارها، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات،
 /// الخدمات المقترحة، والطلب والسلة تحت
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress, this.onDrag, this.onDragging});
+  const ServiceScreen({super.key, required this.service, this.package, this.onOpen, this.onProgress, this.onDrag, this.onDragging, this.showButtons = true});
 
   final Service service;
 
@@ -193,6 +274,9 @@ class ServiceScreen extends StatefulWidget {
 
   /// بدأ السحب لتحت أو خلص (عشان يوقف التبديل يمين ويسار وقت السحب)
   final ValueChanged<bool>? onDragging;
+
+  /// أزرار الرجوع والمفضلة والمشاركة (البطاقات المتبدّلة ترسمها مرة وحدة فوقها بدل كل بطاقة)
+  final bool showButtons;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -345,21 +429,10 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
 
   Service get sv => widget.service;
 
-  Widget _round(IconData icon, String label, VoidCallback onTap) => CircleButton(
-        icon: icon,
-        size: 42,
-        iconSize: 19,
-        bg: AppColors.white,
-        semanticLabel: label,
-        onTap: onTap,
-      );
-
   @override
   Widget build(BuildContext context) {
-    final s = AppScope.of(context);
     final about = _more || sv.about.length <= 120 ? sv.about : '${sv.about.substring(0, 120)}…';
     final reviews = sv.reviewList;
-    final fav = s.favServices.contains(sv.id);
     final suggest = servicesIn(_suggestCat).where((x) => x.id != sv.id).toList();
 
     return Material(
@@ -391,31 +464,6 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
                           width: double.infinity,
                           color: sv.tint,
                           child: Image.asset(sv.photo, fit: BoxFit.cover),
-                        ),
-                      ),
-                      PositionedDirectional(
-                        top: 14,
-                        start: 14,
-                        child: _round(CupertinoIcons.xmark, 'إغلاق', _close),
-                      ),
-                      PositionedDirectional(
-                        top: 14,
-                        end: 14,
-                        child: Column(
-                          children: [
-                            _round(
-                              fav ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                              fav ? 'إزالة ${sv.name} من المفضلة' : 'إضافة ${sv.name} للمفضلة',
-                              () {
-                                HapticFeedback.selectionClick();
-                                s.toggleFavService(sv.id);
-                              },
-                            ),
-                            const SizedBox(height: 8),
-                            Builder(
-                              builder: (ctx) => _round(CupertinoIcons.share, 'مشاركة الخدمة', () => shareText(ctx, shareServiceText(sv))),
-                            ),
-                          ],
                         ),
                       ),
                     ],
@@ -594,49 +642,59 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
                   ),
                 ],
               ),
-                // لما ينزل: شريط صغير فوق فيه الإغلاق، والاسم والسعر، وصورة صغيرة، والمشاركة
+                // لما ينزل: شريط آبل فوق (زجاج مغبّش) فيه صورة صغيرة والاسم والسعر بين الأزرار
                 ValueListenableBuilder<double>(
                   valueListenable: _down,
                   builder: (context, v, _) {
-                    final o = ((v - 0.55) / 0.45).clamp(0.0, 1.0);
+                    final o = ((v - 0.4) / 0.6).clamp(0.0, 1.0);
                     if (o == 0) return const SizedBox.shrink();
                     return Positioned(
                       top: 0,
                       left: 0,
                       right: 0,
-                      child: Opacity(
-                        opacity: o,
-                        child: Container(
-                          padding: EdgeInsets.fromLTRB(14, MediaQuery.paddingOf(context).top * v + 8, 14, 8),
-                          decoration: const BoxDecoration(
-                            color: AppColors.white,
-                            border: Border(bottom: BorderSide(color: Color(0x14000000))),
-                          ),
-                          child: Row(
-                            children: [
-                              _round(CupertinoIcons.xmark, 'إغلاق', _close),
-                              const SizedBox(width: 10),
-                              ServiceImage(service: sv, size: 40),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(sv.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(15, weight: FontWeight.w600)),
-                                    Text(_pkg != null ? money(_pkg!.price) : priceLabel(sv), style: ts(14, weight: FontWeight.w700)),
-                                  ],
-                                ),
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 24 * o, sigmaY: 24 * o),
+                          child: Container(
+                            padding: EdgeInsets.fromLTRB(14, MediaQuery.paddingOf(context).top * v + 10, 14, 10),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg.withAlpha((200 * o).round()),
+                              border: Border(bottom: BorderSide(color: AppColors.ink.withAlpha((24 * o).round()), width: 0.5)),
+                            ),
+                            child: Opacity(
+                              opacity: o,
+                              child: Row(
+                                children: [
+                                  // مكان زر الرجوع، ومكان زرين المفضلة والمشاركة
+                                  const SizedBox(width: 56),
+                                  ServiceImage(service: sv, size: 40),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(sv.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(15, weight: FontWeight.w600)),
+                                        Text(_pkg != null ? money(_pkg!.price) : priceLabel(sv), style: ts(14, weight: FontWeight.w700)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 108),
+                                ],
                               ),
-                              Builder(
-                                builder: (ctx) => _round(CupertinoIcons.share, 'مشاركة الخدمة', () => shareText(ctx, shareServiceText(sv))),
-                              ),
-                            ],
+                            ),
                           ),
                         ),
                       ),
                     );
                   },
                 ),
+                if (widget.showButtons)
+                  Positioned(
+                    top: 14 + MediaQuery.paddingOf(context).top,
+                    left: 14,
+                    right: 14,
+                    child: ServiceButtons(service: sv, onClose: _close),
+                  ),
                 ],
               )),
             ),
