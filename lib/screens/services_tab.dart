@@ -33,7 +33,7 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
   final Map<String, GlobalKey> _keys = {};
 
   /// 0 = مربعات كبيرة، 1 = كبسولات (تتحرك بحركة وحدة سريعة مثل المثال، مو مع الإصبع)
-  late final AnimationController _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 320));
+  late final AnimationController _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 450));
 
   /// ترتيب الأقسام الظاهرة، والقسم اللي يقرأه الحين (الخط تحته)
   List<String> _order = const [];
@@ -41,7 +41,7 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
 
   // أطوال الشريط اللي فوق
   static const _bar = 56.0;
-  static const _tilesMax = 124.0;
+  static const _tilesMax = 118.0;
   static const _tilesMin = 62.0;
   static const _tabs = 52.0;
 
@@ -203,7 +203,7 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
             AnimatedBuilder(
               animation: _collapse,
               builder: (context, _) => _ServicesHeader(
-                t: Curves.easeOutCubic.transform(_collapse.value),
+                t: _collapse.value,
                 top: top,
                 bar: _bar,
                 tilesMax: _tilesMax,
@@ -383,7 +383,9 @@ class _ServicesHeader extends StatelessWidget {
   }
 }
 
-/// مربع تخصص: كبير (صورة وتحتها الاسم) ويتحول لكبسولة (صورة صغيرة والاسم جنبها) مع النزول
+/// مربع تخصص. فوق: الصورة في إطار مربع وتحته الاسم. مع النزول: الاسم اللي تحت يختفي، والإطار يقصر
+/// والصورة تصغر، وبعدها الإطار يتمدد لجهة اليسار ويصير مستطيل ويطلع الاسم من داخله جنب الصورة.
+/// ومع الطلوع نفس الحركة بالعكس
 class _CatTile extends StatelessWidget {
   const _CatTile({required this.label, required this.photo, required this.selected, required this.t, required this.height, required this.onTap});
 
@@ -392,27 +394,24 @@ class _CatTile extends StatelessWidget {
   /// null = "الكل" (أيقونة بدل الصورة)
   final String? photo;
   final bool selected;
+
+  /// 0 = مربع، 1 = مستطيل
   final double t;
   final double height;
   final VoidCallback onTap;
 
-  static const _bigW = 84.0;
-  static const _bigImage = 72.0;
+  /// الإطار المربع، والمستطيل
+  static const _square = 76.0;
   static const _pillH = 46.0;
-  static const _pillImage = 34.0;
 
-  Widget _image(double size, double radius) => Container(
-        width: size,
-        height: size,
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: photo == null ? AppColors.accent : AppColors.white,
-          borderRadius: BorderRadius.circular(radius),
-        ),
-        child: photo == null
-            ? Icon(CupertinoIcons.square_grid_2x2_fill, size: size * 0.45, color: AppColors.onAccent)
-            : Image.asset(photo!, fit: BoxFit.cover),
-      );
+  /// الصورة داخل الإطار، والفراغ حولها
+  static const _imageBig = 70.0;
+  static const _imageSmall = 34.0;
+
+  static double _lerp(double a, double b, double x) => a + (b - a) * x;
+
+  /// جزء من الحركة: من [from] إلى [to] (قبلها 0 وبعدها 1)
+  static double _phase(double t, double from, double to) => Curves.easeInOut.transform(((t - from) / (to - from)).clamp(0.0, 1.0));
 
   @override
   Widget build(BuildContext context) {
@@ -423,37 +422,57 @@ class _CatTile extends StatelessWidget {
       textScaler: MediaQuery.textScalerOf(context),
       maxLines: 1,
     )..layout();
-    final pillW = 6 + _pillImage + 8 + tp.width + 16 + 2;
+    final textW = tp.width;
     tp.dispose();
-    final width = _bigW + (pillW - _bigW) * t;
-    final border = Border.all(color: selected ? AppColors.ink : AppColors.ink.withAlpha(0), width: 1);
 
-    final big = SizedBox(
-      width: _bigW,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 8),
-          Container(
-            decoration: BoxDecoration(borderRadius: BorderRadius.circular(24), border: border),
-            padding: const EdgeInsets.all(2),
-            child: _image(_bigImage, 22),
-          ),
-          const SizedBox(height: 6),
-          Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: style.copyWith(fontSize: 14)),
-        ],
+    // المراحل: الاسم اللي تحت يختفي أول، والإطار يقصر والصورة تصغر، وبعدها الإطار يتمدد ويطلع الاسم داخله
+    final fadeLabel = _phase(t, 0, 0.3);
+    final shrink = _phase(t, 0, 0.6);
+    final widen = _phase(t, 0.3, 1);
+
+    final pad = _lerp((_square - _imageBig) / 2, (_pillH - _imageSmall) / 2, shrink);
+    final image = _lerp(_imageBig, _imageSmall, shrink);
+    final frameH = _lerp(_square, _pillH, shrink);
+    final pillW = pad + _imageSmall + 8 + textW + 16;
+    final frameW = _lerp(_square, pillW, widen);
+    final radius = _lerp(20, _pillH / 2, shrink);
+    final labelH = 24 * (1 - fadeLabel);
+
+    final frame = Container(
+      width: frameW,
+      height: frameH,
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: selected ? AppColors.ink : AppColors.ink.withAlpha(0), width: 1),
       ),
-    );
-    final pill = Container(
-      width: pillW,
-      height: _pillH,
-      padding: const EdgeInsetsDirectional.fromSTEB(6, 0, 14, 0),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(999), border: border),
-      child: Row(
+      child: Stack(
         children: [
-          ClipRRect(borderRadius: BorderRadius.circular(999), child: _image(_pillImage, 999)),
-          const SizedBox(width: 8),
-          Flexible(child: Text(label, maxLines: 1, style: style)),
+          // الصورة في بداية الإطار (يمين)
+          PositionedDirectional(
+            start: pad,
+            top: (frameH - image) / 2 - 1,
+            child: Container(
+              width: image,
+              height: image,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: photo == null ? AppColors.accent : AppColors.bg,
+                borderRadius: BorderRadius.circular(_lerp(17, image / 2, shrink)),
+              ),
+              child: photo == null
+                  ? Icon(CupertinoIcons.square_grid_2x2_fill, size: image * 0.45, color: AppColors.onAccent)
+                  : Image.asset(photo!, fit: BoxFit.cover),
+            ),
+          ),
+          // الاسم داخل الإطار جنب الصورة: يطلع مع تمدد الإطار (المقصوص منه ما يبان)
+          PositionedDirectional(
+            start: pad + image + 8,
+            top: 0,
+            bottom: 0,
+            child: Center(child: Text(label, maxLines: 1, softWrap: false, style: style)),
+          ),
         ],
       ),
     );
@@ -463,35 +482,38 @@ class _CatTile extends StatelessWidget {
       selected: selected,
       semanticLabel: label,
       child: SizedBox(
-        width: width,
+        width: frameW,
         height: height,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            if (t < 1)
-              Opacity(
-                opacity: 1 - t,
-                child: OverflowBox(
-                  alignment: Alignment.topCenter,
-                  minWidth: _bigW,
-                  maxWidth: _bigW,
-                  minHeight: 0,
-                  maxHeight: 140,
-                  child: big,
+        child: ClipRect(
+          child: OverflowBox(
+            alignment: Alignment.center,
+            minHeight: 0,
+            maxHeight: double.infinity,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                frame,
+                // الاسم تحت المربع: يختفي أول ما يبدأ النزول
+                SizedBox(
+                  height: labelH,
+                  child: Opacity(
+                    opacity: 1 - fadeLabel,
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        softWrap: false,
+                        textAlign: TextAlign.center,
+                        style: style.copyWith(fontSize: 13),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            if (t > 0)
-              Opacity(
-                opacity: t,
-                child: OverflowBox(
-                  minWidth: pillW,
-                  maxWidth: pillW,
-                  minHeight: _pillH,
-                  maxHeight: _pillH,
-                  child: pill,
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
