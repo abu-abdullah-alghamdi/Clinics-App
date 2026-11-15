@@ -862,7 +862,7 @@ class GlassSheet extends StatelessWidget {
 }
 
 /// صفحة تبويب بعنوان كبير يصغر ويثبت فوق في شريط زجاجي وأنت تمرر (مثل الإعدادات والصور)
-class LargeTitleScroll extends StatelessWidget {
+class LargeTitleScroll extends StatefulWidget {
   const LargeTitleScroll({
     super.key,
     required this.title,
@@ -883,7 +883,30 @@ class LargeTitleScroll extends StatelessWidget {
   final double bottomSpace;
 
   @override
+  State<LargeTitleScroll> createState() => _LargeTitleScrollState();
+}
+
+class _LargeTitleScrollState extends State<LargeTitleScroll> {
+  /// التغبيش يشتغل بس بعد ما يصغر العنوان. وهو كبير الشريط شفاف، والتغبيش وقتها كان
+  /// يغبّش ظل البطاقات اللي تحته ويطلع خط يقص الخلفية تحت العنوان
+  bool _blur = false;
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.depth == 0 && n.metrics.axis == Axis.vertical) {
+      final blur = n.metrics.pixels > 48;
+      if (blur != _blur) setState(() => _blur = blur);
+    }
+    return false;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final title = widget.title;
+    final children = widget.children;
+    final trailing = widget.trailing;
+    final onRefresh = widget.onRefresh;
+    final horizontal = widget.horizontal;
+    final bottomSpace = widget.bottomSpace;
     return CupertinoTheme(
       data: CupertinoThemeData(
         brightness: Brightness.light,
@@ -898,30 +921,34 @@ class LargeTitleScroll extends StatelessWidget {
       // (نفس لون الخلفية بشفافية صفر، عشان الانتقال ما يمر بلون غامق)
       child: CupertinoPageScaffoldBackgroundColor(
         color: AppColors.bg.withAlpha(0),
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
-          slivers: [
-            CupertinoSliverNavigationBar(
-              // العنوان الكبير مساحته ثابتة في شريط آبل، فنحد تكبيره عشان ما ينقص
-              largeTitle: MediaQuery.withClampedTextScaling(
-                maxScaleFactor: 1.2,
-                child: Semantics(header: true, child: Text(title, maxLines: 1)),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _onScroll,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            slivers: [
+              CupertinoSliverNavigationBar(
+                // العنوان الكبير مساحته ثابتة في شريط آبل، فنحد تكبيره عشان ما ينقص
+                largeTitle: MediaQuery.withClampedTextScaling(
+                  maxScaleFactor: 1.2,
+                  child: Semantics(header: true, child: Text(title, maxLines: 1)),
+                ),
+                trailing: trailing,
+                automaticallyImplyLeading: false,
+                transitionBetweenRoutes: false,
+                backgroundColor: highContrast(context) ? AppColors.bg : AppColors.bg.withValues(alpha: 0.78),
+                border: null,
+                enableBackgroundFilterBlur: _blur,
+                // مسافة تحت سطر الأزرار مثل شريط آبل، عشان الزر ما يلمس حافة الشريط
+                bottom: const PreferredSize(preferredSize: Size.fromHeight(10), child: SizedBox.shrink()),
+                bottomMode: NavigationBarBottomMode.always,
               ),
-              trailing: trailing,
-              automaticallyImplyLeading: false,
-              transitionBetweenRoutes: false,
-              backgroundColor: highContrast(context) ? AppColors.bg : AppColors.bg.withValues(alpha: 0.78),
-              border: null,
-              // مسافة تحت سطر الأزرار مثل شريط آبل، عشان الزر ما يلمس حافة الشريط
-              bottom: const PreferredSize(preferredSize: Size.fromHeight(10), child: SizedBox.shrink()),
-              bottomMode: NavigationBarBottomMode.always,
-            ),
-            if (onRefresh != null) CupertinoSliverRefreshControl(onRefresh: onRefresh),
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, bottomSpace),
-              sliver: SliverList(delegate: SliverChildListDelegate(children)),
-            ),
-          ],
+              if (onRefresh != null) CupertinoSliverRefreshControl(onRefresh: onRefresh),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(horizontal, 8, horizontal, bottomSpace),
+                sliver: SliverList(delegate: SliverChildListDelegate(children)),
+              ),
+            ],
+          ),
         ),
       ),
     );
