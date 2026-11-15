@@ -415,9 +415,10 @@ class _CatTile extends StatelessWidget {
   static const _square = 76.0;
   static const _pillH = 46.0;
 
-  /// حد الإطار (بدون حد: التحديد يبان بلون الإطار نفسه)، والحافة حول الصورة وهي مربع كبير
+  /// بدون حد ولا حافة: الصورة تعبّي المربع كامل، والتحديد إطار بلون العيادة يرتسم فوق حافتها
   static const _border = 0.0;
-  static const _gap = 1.0;
+  static const _gap = 0.0;
+  static const _ring = 1.5;
 
   /// الصورة داخل الإطار: كبيرة تعبّيه وحولها حافة بيضاء 1 من كل الجهات، وصغيرة في المستطيل
   static const _imageBig = _square - 2 * _border - 2 * _gap;
@@ -460,9 +461,14 @@ class _CatTile extends StatelessWidget {
       height: frameH,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        // المختار بلون العيادة: حافة ملوّنة حول الصورة وهو مربع، وكبسولة ملوّنة وهو مستطيل
+        // وهو مستطيل: المختار كبسولة بلون العيادة، وغيره أبيض
         color: selected ? AppColors.accent : AppColors.white,
         borderRadius: BorderRadius.circular(radius),
+      ),
+      // وهو مربع: إطار بلون العيادة (1.5) يظهر بس على المختار
+      foregroundDecoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: selected ? AppColors.accent : AppColors.accent.withAlpha(0), width: _ring),
       ),
       child: Stack(
         children: [
