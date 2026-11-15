@@ -121,11 +121,11 @@ class _PackageCard extends StatelessWidget {
                           height: 34,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: i < p.used ? AppColors.ink : AppColors.bg,
+                            color: i < p.used ? AppColors.accent : AppColors.bg,
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: i < p.used
-                              ? const Icon(Icons.check_rounded, size: 18, color: AppColors.white)
+                              ? const Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent)
                               : Text(fmtNum(i + 1), style: ts(13, color: AppColors.faint)),
                         ),
                       ),

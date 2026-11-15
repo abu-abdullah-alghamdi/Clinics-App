@@ -329,11 +329,11 @@ class AppleIconButton extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: AppColors.ink,
+                    color: AppColors.accent,
                     borderRadius: BorderRadius.circular(11),
                     border: Border.all(color: AppColors.bg, width: 2),
                   ),
-                  child: Text(fmtNum(count), style: ts(11, weight: FontWeight.w700, color: AppColors.white, height: 1)),
+                  child: Text(fmtNum(count), style: ts(11, weight: FontWeight.w700, color: AppColors.onAccent, height: 1)),
                 ),
               ),
             ),
@@ -1184,7 +1184,7 @@ class SelectDot extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? AppColors.accent : Colors.transparent,
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.ink, width: 1.5),
+          border: Border.all(color: selected ? AppColors.accent : AppColors.ink, width: 1.5),
         ),
         child: selected ? const Icon(Icons.check_rounded, size: 18, color: AppColors.onAccent) : null,
       );

@@ -157,8 +157,8 @@ class OfflineCard extends StatelessWidget {
             icon: CupertinoIcons.arrow_clockwise,
             height: 50,
             fontSize: 17,
-            bg: AppColors.ink,
-            fg: AppColors.white,
+            bg: AppColors.accent,
+            fg: AppColors.onAccent,
             onTap: onRetry,
           ),
         ],
@@ -199,8 +199,8 @@ class ServerErrorCard extends StatelessWidget {
             icon: CupertinoIcons.arrow_clockwise,
             height: 50,
             fontSize: 17,
-            bg: AppColors.ink,
-            fg: AppColors.white,
+            bg: AppColors.accent,
+            fg: AppColors.onAccent,
             onTap: onRetry,
           ),
         ],
@@ -267,8 +267,8 @@ class ForceUpdatePage extends StatelessWidget {
                     label: 'تحديث من App Store',
                     icon: CupertinoIcons.arrow_down_to_line,
                     height: 50,
-                    bg: AppColors.ink,
-                    fg: AppColors.white,
+                    bg: AppColors.accent,
+                    fg: AppColors.onAccent,
                     onTap: () => launchUrl(Uri.parse(ClinicConfig.current.storeUrl), mode: LaunchMode.externalApplication),
                   ),
                 ),
@@ -833,8 +833,8 @@ Future<void> showLateCancelSheet(BuildContext context, Booking b, Duration left)
         icon: CupertinoIcons.phone_fill,
         height: 50,
         fontSize: 17,
-        bg: AppColors.ink,
-        fg: AppColors.white,
+        bg: AppColors.accent,
+        fg: AppColors.onAccent,
         onTap: () {
           Navigator.of(ctx).pop();
           launchUrl(Uri.parse('tel:${b.branch.phone}'));
@@ -886,8 +886,8 @@ Future<void> showCalendarBlockedSheet(BuildContext context) {
         label: 'تفعيل',
         height: 50,
         fontSize: 17,
-        bg: AppColors.ink,
-        fg: AppColors.white,
+        bg: AppColors.accent,
+        fg: AppColors.onAccent,
         onTap: () {
           Navigator.of(ctx).pop();
           openAppSettings();
@@ -924,8 +924,8 @@ class NotificationsBanner extends StatelessWidget {
               height: 40,
               fontSize: 14,
               padding: 18,
-              bg: AppColors.ink,
-              fg: AppColors.white,
+              bg: AppColors.accent,
+              fg: AppColors.onAccent,
               onTap: openAppSettings,
             ),
             CircleButton(

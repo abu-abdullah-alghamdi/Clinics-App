@@ -162,7 +162,7 @@ class AccountTab extends StatelessWidget {
                     // مفتاح iOS مرسوم داخل التطبيق عشان ينزل تحت الشريط الزجاجي وأنت تمرر
                     trailing: CupertinoSwitch(
                       value: s.remindOnWhatsapp,
-                      activeTrackColor: AppColors.ink,
+                      activeTrackColor: AppColors.accent,
                       onChanged: (_) => s.toggleRemind(),
                     ),
                     onTap: s.toggleRemind),

@@ -399,7 +399,7 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: selected ? AppColors.ink : Colors.transparent, width: 1),
+            border: Border.all(color: selected ? AppColors.accent : Colors.transparent, width: 1),
           ),
           child: Row(
             children: [
@@ -718,8 +718,8 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
                       icon: added ? CupertinoIcons.bag_fill : CupertinoIcons.bag_badge_plus,
                       size: 50,
                       iconSize: 22,
-                      bg: added ? AppColors.ink : AppColors.white,
-                      fg: added ? AppColors.white : AppColors.ink,
+                      bg: added ? AppColors.accent : AppColors.white,
+                      fg: added ? AppColors.onAccent : AppColors.ink,
                       semanticLabel: added ? 'عرض السلة' : 'أضف للسلة',
                       onTap: () {
                         if (added) {

@@ -362,7 +362,7 @@ class _ServicesHeader extends StatelessWidget {
                               Container(
                                 height: 3,
                                 decoration: BoxDecoration(
-                                  color: section == id ? AppColors.ink : AppColors.ink.withAlpha(0),
+                                  color: section == id ? AppColors.accent : AppColors.accent.withAlpha(0),
                                   borderRadius: BorderRadius.circular(2),
                                 ),
                               ),
@@ -664,11 +664,11 @@ class CartCircle extends StatelessWidget {
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          color: added ? AppColors.ink : AppColors.accent,
+          color: AppColors.accent,
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [BoxShadow(color: Color(0x1F000000), blurRadius: 8, offset: Offset(0, 2))],
         ),
-        child: Icon(added ? Icons.check_rounded : Icons.add_rounded, size: 24, color: added ? AppColors.white : AppColors.onAccent),
+        child: Icon(added ? Icons.check_rounded : Icons.add_rounded, size: 24, color: AppColors.onAccent),
       ),
     );
   }
@@ -694,7 +694,7 @@ class CartBar extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 62),
           padding: const EdgeInsetsDirectional.fromSTEB(10, 10, 22, 10),
           decoration: BoxDecoration(
-            color: AppColors.ink,
+            color: AppColors.accent,
             borderRadius: BorderRadius.circular(999),
             boxShadow: const [BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 10))],
           ),
@@ -705,12 +705,13 @@ class CartBar extends StatelessWidget {
                 height: 42,
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: AppColors.accent, borderRadius: BorderRadius.circular(14)),
-                child: Text(fmtNum(count), style: ts(18, weight: FontWeight.w700, color: AppColors.onAccent)),
+                // المربع بلون الخط عشان يبان فوق لون العيادة
+                decoration: BoxDecoration(color: AppColors.onAccent, borderRadius: BorderRadius.circular(14)),
+                child: Text(fmtNum(count), style: ts(18, weight: FontWeight.w700, color: AppColors.accent)),
               ),
               const SizedBox(width: 12),
-              Expanded(child: Text('عرض السلة', style: ts(17, weight: FontWeight.w600, color: AppColors.white))),
-              const Icon(CupertinoIcons.chevron_left, size: 18, color: AppColors.white),
+              Expanded(child: Text('عرض السلة', style: ts(17, weight: FontWeight.w600, color: AppColors.onAccent))),
+              const Icon(CupertinoIcons.chevron_left, size: 18, color: AppColors.onAccent),
             ],
           ),
         ),

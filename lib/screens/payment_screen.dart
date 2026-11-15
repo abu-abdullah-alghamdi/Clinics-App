@@ -229,8 +229,8 @@ class _PaymentScreenState extends State<PaymentScreen> {
                 height: 40,
                 fontSize: 15,
                 padding: 18,
-                bg: AppColors.ink,
-                fg: AppColors.white,
+                bg: AppColors.accent,
+                fg: AppColors.onAccent,
                 enabled: _couponCtrl.text.trim().isNotEmpty,
                 onTap: _applyCoupon,
               ),
@@ -278,7 +278,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.white,
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: AppColors.ink, width: 1.5),
+                        border: Border.all(color: AppColors.accent, width: 1.5),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,8 +382,6 @@ class _PaymentScreenState extends State<PaymentScreen> {
                       height: 50,
                       fontSize: 17,
                       enabled: _cardOk,
-                      bg: _method.installments ? AppColors.ink : null,
-                      fg: _method.installments ? AppColors.white : null,
                       onTap: _pay,
                     ),
             ),
@@ -413,7 +411,7 @@ class _MethodTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(26),
-            border: Border.all(color: selected && method.installments ? AppColors.ink : Colors.transparent, width: 1),
+            border: Border.all(color: selected && method.installments ? AppColors.accent : Colors.transparent, width: 1),
           ),
           child: Column(
             children: [

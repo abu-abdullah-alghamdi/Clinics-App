@@ -120,7 +120,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     final borderColor = _error
         ? AppColors.red
         : active
-            ? AppColors.ink
+            ? AppColors.accent
             : Colors.transparent;
     return Container(
       height: 86 * uiScale(context),
