@@ -212,7 +212,7 @@ class _SearchScreenState extends State<SearchScreen> {
                             title: x.name,
                             sub: '★ ${x.ratingText}، ${x.availabilityText}',
                             trail: Text(priceLabel(x), style: ts(15, weight: FontWeight.w600)),
-                            onTap: () => nav.push(iosRoute(ServiceScreen(service: x))),
+                            onTap: () => openService(context, x),
                           ),
                       ]),
                     ],

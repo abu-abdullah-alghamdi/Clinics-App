@@ -339,7 +339,7 @@ class _OfferBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sv = offerService;
-    void open() => Navigator.of(context).push(iosRoute(ServiceScreen(service: sv)));
+    void open() => openService(context, sv, among: popularServices);
     return GestureDetector(
       onTap: open,
       child: Container(
@@ -395,7 +395,7 @@ class _MiniServiceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final sv = service;
-    void open() => Navigator.of(context).push(iosRoute(ServiceScreen(service: sv)));
+    void open() => openService(context, sv, among: popularServices);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: open,

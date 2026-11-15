@@ -4,22 +4,122 @@ import 'package:flutter/services.dart';
 
 import '../data.dart';
 import '../extras.dart';
+import '../main.dart';
 import '../native.dart';
 import '../pay_widgets.dart';
 import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import '../main.dart';
 import 'cart_screen.dart';
 import 'request_screen.dart';
 import 'services_tab.dart';
 
-/// صفحة الخدمة: الصورة، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات، وزر الطلب
+/// خدمة في البطاقات: الخدمة، والباقة المختارة لها (لو جاية من قسم الباقات)
+typedef ServiceItem = ({Service service, ServicePackage? package});
+
+/// يفتح بطاقة الخدمة من تحت، ويقدر يسحب يمين ويسار بين خدمات القائمة بنفس ترتيبها
+void openServiceSheet(BuildContext context, List<ServiceItem> items, int index) {
+  final reduce = MediaQuery.disableAnimationsOf(context);
+  Navigator.of(context).push(PageRouteBuilder<void>(
+    opaque: false,
+    barrierColor: const Color(0x73000000),
+    barrierLabel: 'إغلاق',
+    transitionDuration: reduce ? Duration.zero : const Duration(milliseconds: 420),
+    reverseTransitionDuration: reduce ? Duration.zero : const Duration(milliseconds: 300),
+    pageBuilder: (_, _, _) => ServicePager(items: items, index: index),
+    transitionsBuilder: (_, animation, _, child) => SlideTransition(
+      position: Tween(begin: const Offset(0, 1), end: Offset.zero)
+          .animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic, reverseCurve: Curves.easeInCubic)),
+      child: child,
+    ),
+  ));
+}
+
+/// يفتح خدمة وحدة (من البحث والمفضلة والرئيسية)
+void openService(BuildContext context, Service sv, {List<Service>? among}) {
+  final list = among != null && among.any((x) => x.id == sv.id) ? among : [sv];
+  openServiceSheet(context, [for (final x in list) (service: x, package: null)], list.indexWhere((x) => x.id == sv.id));
+}
+
+/// بطاقات الخدمات: كل خدمة بطاقة، والبطاقة اللي جنبها يبان طرفها، والسحب يبدّل بينهم
+class ServicePager extends StatefulWidget {
+  const ServicePager({super.key, required this.items, required this.index});
+
+  final List<ServiceItem> items;
+  final int index;
+
+  @override
+  State<ServicePager> createState() => _ServicePagerState();
+}
+
+class _ServicePagerState extends State<ServicePager> {
+  late final PageController _pages = PageController(initialPage: widget.index, viewportFraction: 0.93);
+
+  @override
+  void dispose() {
+    _pages.dispose();
+    super.dispose();
+  }
+
+  /// خدمة من "خدمات مقترحة لك": لو موجودة في البطاقات ينتقل لها، وإلا يفتح بطاقاتها فوق
+  void _open(List<Service> list, int i) {
+    final target = list[i];
+    final at = widget.items.indexWhere((x) => x.service.id == target.id && x.package == null);
+    if (at >= 0 && !MediaQuery.disableAnimationsOf(context)) {
+      _pages.animateToPage(at, duration: const Duration(milliseconds: 380), curve: Curves.easeOutCubic);
+    } else if (at >= 0) {
+      _pages.jumpToPage(at);
+    } else {
+      openServiceSheet(context, [for (final x in list) (service: x, package: null)], i);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top + 8;
+    return Padding(
+      padding: EdgeInsets.only(top: top),
+      child: PageView.builder(
+        controller: _pages,
+        itemCount: widget.items.length,
+        itemBuilder: (context, i) => AnimatedBuilder(
+          animation: _pages,
+          builder: (context, child) {
+            // البطاقة اللي جنب الحالية أصغر شوي، وتكبر وهي تجي للنص
+            final page = _pages.hasClients && _pages.position.haveDimensions ? (_pages.page ?? widget.index.toDouble()) : widget.index.toDouble();
+            final d = (page - i).abs().clamp(0.0, 1.0);
+            return Transform.scale(scale: 1 - d * 0.05, alignment: Alignment.bottomCenter, child: child);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(34)),
+              child: ServiceScreen(
+                service: widget.items[i].service,
+                package: widget.items[i].package,
+                onOpen: _open,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// بطاقة الخدمة: الصورة وأزرارها، الاسم، التوفر، التقييم، الباقات، النبذة، التقييمات،
+/// الخدمات المقترحة، والطلب والسلة تحت
 class ServiceScreen extends StatefulWidget {
-  const ServiceScreen({super.key, required this.service});
+  const ServiceScreen({super.key, required this.service, this.package, this.onOpen});
 
   final Service service;
+
+  /// الباقة المختارة من البداية
+  final ServicePackage? package;
+
+  /// فتح خدمة من "خدمات مقترحة لك"
+  final void Function(List<Service> list, int index)? onOpen;
 
   @override
   State<ServiceScreen> createState() => _ServiceScreenState();
@@ -29,8 +129,19 @@ class _ServiceScreenState extends State<ServiceScreen> {
   bool _more = false;
 
   /// الباقة المختارة (null = جلسة وحدة)
-  ServicePackage? _pkg;
+  late ServicePackage? _pkg = widget.package;
 
+  /// فلتر "خدمات مقترحة لك" (null = الكل)
+  String? _suggestCat;
+
+  /// السحب لتحت من أعلى البطاقة يقفلها (مرة وحدة)
+  bool _closing = false;
+
+  void _close() {
+    if (_closing) return;
+    _closing = true;
+    Navigator.of(context).maybePop();
+  }
   /// خيار في "اختر": جلسة وحدة أو باقة
   Widget _option(String title, String? sub, int price, int save, bool selected, VoidCallback onTap) => Pressable(
         onTap: onTap,
@@ -78,54 +189,78 @@ class _ServiceScreenState extends State<ServiceScreen> {
 
   Service get sv => widget.service;
 
+  Widget _round(IconData icon, String label, VoidCallback onTap) => CircleButton(
+        icon: icon,
+        size: 42,
+        iconSize: 19,
+        bg: AppColors.white,
+        semanticLabel: label,
+        onTap: onTap,
+      );
+
   @override
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final about = _more || sv.about.length <= 120 ? sv.about : '${sv.about.substring(0, 120)}…';
     final reviews = sv.reviewList;
+    final fav = s.favServices.contains(sv.id);
+    final suggest = servicesIn(_suggestCat).where((x) => x.id != sv.id).toList();
 
-    return Scaffold(
-      body: SafeArea(
+    return Material(
+      color: AppColors.bg,
+      child: SafeArea(
         top: false,
         child: Column(
           children: [
             Expanded(
-              child: FloatingBar(trailing: [
-                  // المشاركة والمفضلة في قطعة زجاج وحدة من آبل
-                  Builder(
-                    builder: (ctx) => AppleButtonGroup(
-                      id: 'service-actions',
-                      buttons: [
-                        AppleIconButton(
-                          symbol: 'square.and.arrow.up',
-                          fallback: CupertinoIcons.share,
-                          label: 'مشاركة الخدمة',
-                          onTap: () => shareText(ctx, shareServiceText(sv)),
-                        ),
-                        AppleIconButton(
-                          symbol: s.favServices.contains(sv.id) ? 'heart.fill' : 'heart',
-                          fallback: s.favServices.contains(sv.id) ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
-                          label: s.favServices.contains(sv.id) ? 'إزالة ${sv.name} من المفضلة' : 'إضافة ${sv.name} للمفضلة',
-                          onTap: () {
-                            HapticFeedback.selectionClick();
-                            s.toggleFavService(sv.id);
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-                body: ListView(
-                padding: EdgeInsets.fromLTRB(14, FloatingBar.safeTop(context) + FloatingBar.contentTop + 14, 14, 20),
+              child: NotificationListener<ScrollUpdateNotification>(
+                // السحب لتحت وهو في أعلى البطاقة يقفلها
+                onNotification: (n) {
+                  if (n.dragDetails != null && n.metrics.pixels < -80) _close();
+                  return false;
+                },
+                child: ListView(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 20),
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 children: [
-                  // صورة الخدمة
-                  ExcludeSemantics(
-                    child: Container(
-                      height: 230,
-                      clipBehavior: Clip.antiAlias,
-                      decoration: BoxDecoration(color: sv.tint, borderRadius: BorderRadius.circular(44)),
-                      child: Image.asset(sv.photo, fit: BoxFit.cover),
-                    ),
+                  // صورة الخدمة، والإغلاق والمفضلة والمشاركة فوقها
+                  Stack(
+                    children: [
+                      ExcludeSemantics(
+                        child: Container(
+                          height: 300,
+                          width: double.infinity,
+                          clipBehavior: Clip.antiAlias,
+                          decoration: BoxDecoration(color: sv.tint, borderRadius: BorderRadius.circular(30)),
+                          child: Image.asset(sv.photo, fit: BoxFit.cover),
+                        ),
+                      ),
+                      PositionedDirectional(
+                        top: 12,
+                        start: 12,
+                        child: _round(CupertinoIcons.xmark, 'إغلاق', _close),
+                      ),
+                      PositionedDirectional(
+                        top: 12,
+                        end: 12,
+                        child: Column(
+                          children: [
+                            _round(
+                              fav ? CupertinoIcons.heart_fill : CupertinoIcons.heart,
+                              fav ? 'إزالة ${sv.name} من المفضلة' : 'إضافة ${sv.name} للمفضلة',
+                              () {
+                                HapticFeedback.selectionClick();
+                                s.toggleFavService(sv.id);
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            Builder(
+                              builder: (ctx) => _round(CupertinoIcons.share, 'مشاركة الخدمة', () => shareText(ctx, shareServiceText(sv))),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   Padding(
@@ -133,23 +268,28 @@ class _ServiceScreenState extends State<ServiceScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Semantics(header: true, child: Text(sv.name, style: ts(32, height: 1.2))),
-                        const SizedBox(height: 8),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 3),
-                              child: Icon(CupertinoIcons.location_solid, size: 16, color: sv.allBranches ? AppColors.green : AppColors.faint),
+                        Semantics(header: true, child: Text(sv.name, style: ts(28, height: 1.25))),
+                        const SizedBox(height: 10),
+                        // التوفر في الفروع: كبسولة صغيرة
+                        Align(
+                          alignment: AlignmentDirectional.centerStart,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(999)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(CupertinoIcons.location_solid, size: 15, color: sv.allBranches ? AppColors.green : AppColors.faint),
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    sv.availabilityText,
+                                    style: ts(14, weight: FontWeight.w500, color: sv.allBranches ? AppColors.green : AppColors.body),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                sv.availabilityText,
-                                style: ts(15, color: sv.allBranches ? AppColors.green : AppColors.body, height: 1.5),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 8),
                         Row(
@@ -238,6 +378,51 @@ class _ServiceScreenState extends State<ServiceScreen> {
                       ReviewCard(review: r),
                       const SizedBox(height: 8),
                     ],
+                  // خدمات مقترحة لك: فلاتر التخصص وصف خدمات يتحرك يمين ويسار
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 22, 10, 10),
+                    child: Semantics(header: true, child: Text('خدمات مقترحة لك', style: ts(22, weight: FontWeight.w500))),
+                  ),
+                  SizedBox(
+                    height: 44,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        for (final f in categoryFilters) ...[
+                          FilterPill(label: f.label, selected: _suggestCat == f.id, onTap: () => setState(() => _suggestCat = f.id)),
+                          const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 196,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: suggest.length,
+                      separatorBuilder: (_, _) => const SizedBox(width: 10),
+                      itemBuilder: (context, i) {
+                        final x = suggest[i];
+                        return Pressable(
+                          onTap: () => widget.onOpen != null ? widget.onOpen!(suggest, i) : openService(context, x, among: suggest),
+                          semanticLabel: '${x.name}، ${priceLabel(x)}',
+                          child: SizedBox(
+                            width: 130,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ServiceImage(service: x, size: 130),
+                                const SizedBox(height: 8),
+                                Text(x.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(14, weight: FontWeight.w600)),
+                                Text(priceLabel(x), style: ts(14, weight: FontWeight.w700)),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ],
               )),
             ),
