@@ -19,7 +19,7 @@ import 'shell.dart';
 
 const starColor = Color(0xFFFFB800);
 
-/// صفحة الخدمات: مربعات التخصصات (كبيرة فوق، وتتصغّر لكبسولات مع النزول)، وأقسام الكشف والخدمات
+/// صفحة الخدمات: مربعات التخصصات (كبيرة فوق، وتتحول لكبسولات بحركة سريعة لما ينزل)، وأقسام الكشف والخدمات
 /// والباقات والعروض في شبكة عمودين. الضغط على خدمة يفتح بطاقتها، والسحب يمين ويسار يبدّل بين الخدمات
 class ServicesTab extends StatefulWidget {
   const ServicesTab({super.key});
@@ -28,9 +28,12 @@ class ServicesTab extends StatefulWidget {
   State<ServicesTab> createState() => _ServicesTabState();
 }
 
-class _ServicesTabState extends State<ServicesTab> {
+class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStateMixin {
   final _scroll = ScrollController();
   final Map<String, GlobalKey> _keys = {};
+
+  /// 0 = مربعات كبيرة، 1 = كبسولات (تتحرك بحركة وحدة سريعة مثل المثال، مو مع الإصبع)
+  late final AnimationController _collapse = AnimationController(vsync: this, duration: const Duration(milliseconds: 320));
 
   /// ترتيب الأقسام الظاهرة، والقسم اللي يقرأه الحين (الخط تحته)
   List<String> _order = const [];
@@ -42,29 +45,52 @@ class _ServicesTabState extends State<ServicesTab> {
   static const _tilesMin = 62.0;
   static const _tabs = 52.0;
 
-  double _minExtent(BuildContext c) => MediaQuery.paddingOf(c).top + _bar + _tilesMin + _tabs;
+  /// متى تتصغّر ومتى ترجع تكبر (فرق بينهم عشان ما ترجف عند الحد)
+  static const _collapseAt = 90.0;
+  static const _expandAt = 40.0;
 
   @override
   void initState() {
     super.initState();
-    _scroll.addListener(_track);
+    _scroll.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _scroll.dispose();
+    _collapse.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final o = _scroll.offset;
+    final reduce = MediaQuery.disableAnimationsOf(context);
+    if (o > _collapseAt && _collapse.value < 1 && _collapse.status != AnimationStatus.forward) {
+      if (reduce) {
+        _collapse.value = 1;
+      } else {
+        _collapse.forward();
+      }
+    } else if (o < _expandAt && _collapse.value > 0 && _collapse.status != AnimationStatus.reverse) {
+      if (reduce) {
+        _collapse.value = 0;
+      } else {
+        _collapse.reverse();
+      }
+    }
+    _track();
   }
 
   GlobalKey _key(String id) => _keys.putIfAbsent(id, GlobalKey.new);
 
-  /// مكان القسم في الصفحة (بحيث يجي عنوانه تحت الشريط اللي فوق مباشرة)
+  /// مكان القسم في الصفحة (عنوانه في أعلى القائمة)
   double? _offsetOf(String id) {
     final box = _keys[id]?.currentContext?.findRenderObject();
     if (box == null) return null;
     final viewport = RenderAbstractViewport.maybeOf(box);
     if (viewport == null) return null;
-    return viewport.getOffsetToReveal(box, 0).offset - _minExtent(context);
+    return viewport.getOffsetToReveal(box, 0).offset;
   }
 
   /// الخط تحت القسم يمشي مع القسم اللي يقرأه
@@ -95,8 +121,6 @@ class _ServicesTabState extends State<ServicesTab> {
   void _pickCat(String? cat) {
     HapticFeedback.selectionClick();
     AppScope.read(context).setServiceCat(cat);
-    // لو الشريط مصغّر يبقى مصغّر، والصفحة ترجع لأول الأقسام
-    if (_scroll.hasClients && _scroll.offset > _tilesMax - _tilesMin) _scroll.jumpTo(_tilesMax - _tilesMin);
     setState(() => _section = null);
   }
 
@@ -131,7 +155,7 @@ class _ServicesTabState extends State<ServicesTab> {
           child: KeyedSubtree(
             key: _key(id),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 22, 20, 12),
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
               child: Semantics(header: true, child: Text(label, style: ts(22, weight: FontWeight.w600))),
             ),
           ),
@@ -174,20 +198,17 @@ class _ServicesTabState extends State<ServicesTab> {
             ),
           ),
         ),
-        CustomScrollView(
-          controller: _scroll,
-          cacheExtent: 4000,
-          slivers: [
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _ServicesHeader(
+        Column(
+          children: [
+            AnimatedBuilder(
+              animation: _collapse,
+              builder: (context, _) => _ServicesHeader(
+                t: Curves.easeOutCubic.transform(_collapse.value),
                 top: top,
                 bar: _bar,
                 tilesMax: _tilesMax,
                 tilesMin: _tilesMin,
                 tabs: _tabs,
-                tint: tint,
-                fadeSpan: fadeSpan,
                 cat: s.serviceCatFilter,
                 onCat: _pickCat,
                 sections: [for (final x in sections) (x.$1, x.$2)],
@@ -196,15 +217,23 @@ class _ServicesTabState extends State<ServicesTab> {
                 cartCount: s.cartCount,
               ),
             ),
-            ...slivers,
-            if (sections.isEmpty)
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: Text('ما فيه خدمات', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
-                ),
+            Expanded(
+              child: CustomScrollView(
+                controller: _scroll,
+                cacheExtent: 4000,
+                slivers: [
+                  ...slivers,
+                  if (sections.isEmpty)
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Text('ما فيه خدمات', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
+                      ),
+                    ),
+                  SliverToBoxAdapter(child: SizedBox(height: bottom)),
+                ],
               ),
-            SliverToBoxAdapter(child: SizedBox(height: bottom)),
+            ),
           ],
         ),
       ],
@@ -215,16 +244,15 @@ class _ServicesTabState extends State<ServicesTab> {
 /// صورة التخصص في المربع (من صور خدماته)
 const _catPhoto = {'dental': 's1', 'ortho': 's5', 'derma': 's6', 'laser': 's7'};
 
-/// الشريط اللي فوق: العنوان والسلة والبحث، ومربعات التخصصات اللي تتصغّر لكبسولات، والأقسام
-class _ServicesHeader extends SliverPersistentHeaderDelegate {
-  _ServicesHeader({
+/// الشريط اللي فوق: العنوان والسلة والبحث، ومربعات التخصصات (أو الكبسولات)، والأقسام
+class _ServicesHeader extends StatelessWidget {
+  const _ServicesHeader({
+    required this.t,
     required this.top,
     required this.bar,
     required this.tilesMax,
     required this.tilesMin,
     required this.tabs,
-    required this.tint,
-    required this.fadeSpan,
     required this.cat,
     required this.onCat,
     required this.sections,
@@ -233,8 +261,9 @@ class _ServicesHeader extends SliverPersistentHeaderDelegate {
     required this.cartCount,
   });
 
-  final double top, bar, tilesMax, tilesMin, tabs, fadeSpan;
-  final Color tint;
+  /// 0 = مربعات كبيرة، 1 = كبسولات
+  final double t;
+  final double top, bar, tilesMax, tilesMin, tabs;
   final String? cat;
   final ValueChanged<String?> onCat;
   final List<(String, String)> sections;
@@ -243,135 +272,112 @@ class _ServicesHeader extends SliverPersistentHeaderDelegate {
   final int cartCount;
 
   @override
-  double get maxExtent => top + bar + tilesMax + tabs;
-
-  @override
-  double get minExtent => top + bar + tilesMin + tabs;
-
-  @override
-  bool shouldRebuild(covariant _ServicesHeader old) => true;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    // 0 = مربعات كبيرة، 1 = كبسولات صغيرة (يمشي مع حركة الإصبع)
-    final t = (shrinkOffset / (maxExtent - minExtent)).clamp(0.0, 1.0);
-    final extent = (maxExtent - shrinkOffset).clamp(minExtent, maxExtent);
+  Widget build(BuildContext context) {
     final strip = tilesMax - (tilesMax - tilesMin) * t;
-    final s = AppScope.read(context);
     return MediaQuery.withClampedTextScaling(
       maxScaleFactor: 1.3,
-      child: Container(
-        // نفس تدرج الصفحة، بس غير شفاف عشان الخدمات تمر تحته
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [tint, Color.lerp(tint, AppColors.bg, (extent / fadeSpan).clamp(0.0, 1.0))!],
+      child: Column(
+        children: [
+          SizedBox(height: top),
+          SizedBox(
+            height: bar,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  AppleIconButton(
+                    symbol: 'bag',
+                    fallback: CupertinoIcons.bag,
+                    label: 'السلة',
+                    prominent: true,
+                    tint: AppColors.accent,
+                    badge: cartCount,
+                    onTap: () => Navigator.of(context).push(iosRoute(const CartScreen())),
+                  ),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text('الخدمات', textAlign: TextAlign.center, style: ts(20, weight: FontWeight.w600)),
+                    ),
+                  ),
+                  CircleButton(
+                    icon: CupertinoIcons.search,
+                    size: 44,
+                    bg: AppColors.white,
+                    semanticLabel: 'بحث',
+                    onTap: () => Navigator.of(context).push(iosRoute(const SearchScreen())),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ),
-        child: Column(
-          children: [
-            SizedBox(height: top),
-            SizedBox(
-              height: bar,
-              child: Padding(
+          SizedBox(
+            height: strip,
+            child: ClipRect(
+              child: ListView(
+                scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(horizontal: 14),
-                child: Row(
-                  children: [
-                    AppleIconButton(
-                      symbol: 'bag',
-                      fallback: CupertinoIcons.bag,
-                      label: 'السلة',
-                      prominent: true,
-                      tint: AppColors.accent,
-                      badge: cartCount,
-                      onTap: () => Navigator.of(context).push(iosRoute(const CartScreen())),
+                children: [
+                  for (final f in categoryFilters) ...[
+                    _CatTile(
+                      label: f.label,
+                      photo: f.id == null ? null : serviceById(_catPhoto[f.id] ?? 's1').thumb,
+                      selected: cat == f.id,
+                      t: t,
+                      height: strip,
+                      onTap: () => onCat(f.id),
                     ),
-                    Expanded(
-                      child: Semantics(
-                        header: true,
-                        child: Text('الخدمات', textAlign: TextAlign.center, style: ts(20, weight: FontWeight.w600)),
-                      ),
-                    ),
-                    CircleButton(
-                      icon: CupertinoIcons.search,
-                      size: 44,
-                      bg: AppColors.white,
-                      semanticLabel: 'بحث',
-                      onTap: () => Navigator.of(context).push(iosRoute(const SearchScreen())),
-                    ),
+                    const SizedBox(width: 8),
                   ],
-                ),
+                ],
               ),
             ),
-            SizedBox(
-              height: strip,
-              child: ClipRect(
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 14),
-                  children: [
-                    for (final f in categoryFilters) ...[
-                      _CatTile(
-                        label: f.label,
-                        photo: f.id == null ? null : serviceById(_catPhoto[f.id] ?? 's1').thumb,
-                        selected: s.serviceCatFilter == f.id,
-                        t: t,
-                        height: strip,
-                        onTap: () => onCat(f.id),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            SizedBox(
-              height: tabs,
-              child: DecoratedBox(
-                decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0x14000000)))),
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  children: [
-                    for (final (id, label) in sections)
-                      Pressable(
-                        onTap: () => onSection(id),
-                        selected: section == id,
-                        semanticLabel: label,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 10),
-                          child: IntrinsicWidth(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  label,
-                                  textAlign: TextAlign.center,
-                                  style: ts(17,
-                                      weight: section == id ? FontWeight.w700 : FontWeight.w400,
-                                      color: section == id ? AppColors.ink : AppColors.body),
+          ),
+          SizedBox(
+            height: tabs,
+            child: DecoratedBox(
+              decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: Color(0x14000000)))),
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                children: [
+                  for (final (id, label) in sections)
+                    Pressable(
+                      onTap: () => onSection(id),
+                      selected: section == id,
+                      semanticLabel: label,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: IntrinsicWidth(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                style: ts(17,
+                                    weight: section == id ? FontWeight.w700 : FontWeight.w400,
+                                    color: section == id ? AppColors.ink : AppColors.body),
+                              ),
+                              const SizedBox(height: 10),
+                              Container(
+                                height: 3,
+                                decoration: BoxDecoration(
+                                  color: section == id ? AppColors.ink : AppColors.ink.withAlpha(0),
+                                  borderRadius: BorderRadius.circular(2),
                                 ),
-                                const SizedBox(height: 10),
-                                Container(
-                                  height: 3,
-                                  decoration: BoxDecoration(
-                                    color: section == id ? AppColors.ink : AppColors.ink.withAlpha(0),
-                                    borderRadius: BorderRadius.circular(2),
-                                  ),
-                                ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                  ],
-                ),
+                    ),
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
