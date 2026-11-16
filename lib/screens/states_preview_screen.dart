@@ -8,7 +8,6 @@ import '../state.dart';
 import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'brand_compare_screen.dart';
 import 'otp_screen.dart';
 
 /// معاينة الحالات اللي ما تطلع عادة (للتجربة، تتقفل قبل النشر من showStatesPreview)
@@ -46,9 +45,6 @@ class StatesPreviewScreen extends StatelessWidget {
         child: FloatingBar(title: 'معاينة الحالات', body: ListView(
           padding: EdgeInsets.fromLTRB(14, FloatingBar.safeTop(context) + FloatingBar.belowBar, 14, 30),
           children: [
-            _Group(title: 'ألوان الهوية', rows: [
-              _Row('قبل وبعد', hint: 'الأزرار والمؤشرات اللي باقي لونها أسود', onTap: () => open(const BrandCompareScreen())),
-            ]),
             _Group(title: 'صفحات كاملة', rows: [
               _Row('تحميل البيانات', onTap: () => open(const _LoadingDemo())),
               _Row('انقطاع الإنترنت', onTap: () => open(Builder(

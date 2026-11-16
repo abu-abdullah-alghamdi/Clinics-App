@@ -25,6 +25,10 @@ abstract final class AppColors {
   /// اللون المميز فوق البطاقات الداكنة (بطاقة العرض): لو لون العيادة غامق وما يبان فوقها يصير أبيض
   static final accentOnInk = ClinicConfig.contrastRatio(accent, ink) >= ClinicConfig.minContrast ? accent : white;
 
+  /// التبويب المختار في الشريط العائم (سطحه زجاج فاتح): بلون العيادة لو يبان على الأبيض، وإلا أسود
+  /// (نور أزرق، والليموني ما يبان فيصير أسود)
+  static final accentOnBar = ClinicConfig.contrastRatio(accent, white) >= ClinicConfig.minContrast ? accent : ink;
+
   /// نص ثانوي (أخف) فوق اللون المميز: شفاف شوي لو يبقى واضح، وإلا بلونه الكامل
   static final onAccentSoft = _softOn(onAccent, accent, 0xB8);
 

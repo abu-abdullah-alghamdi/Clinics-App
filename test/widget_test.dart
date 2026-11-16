@@ -9,8 +9,10 @@ void main() {
   });
 
   test('تنسيق الوقت', () {
-    expect(fmtTime(0), '4:00 م');
-    expect(fmtTime(150), '6:30 م');
+    expect(fmtClock(DateTime(2026, 11, 8, 16, 0)), '4:00 م');
+    expect(fmtClock(DateTime(2026, 11, 8, 9, 5)), '9:05 ص');
+    expect(fmtClock(DateTime(2026, 11, 8, 12, 30)), '12:30 م');
+    expect(fmtClock(DateTime(2026, 11, 8, 0, 15)), '12:15 ص');
   });
 
   test('تنسيق المبالغ', () {

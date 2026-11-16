@@ -25,11 +25,6 @@ const _dayLong = {
   1: 'الاثنين', 2: 'الثلاثاء', 3: 'الأربعاء', 4: 'الخميس',
   5: 'الجمعة', 6: 'السبت', 7: 'الأحد',
 };
-const _dayShort = {
-  1: 'اثنين', 2: 'ثلاثاء', 3: 'أربعاء', 4: 'خميس',
-  5: 'جمعة', 6: 'سبت', 7: 'أحد',
-};
-
 /// يوم التطبيق المرجعي (يُحسب مرة وحدة عند التشغيل)
 final DateTime appToday = () {
   final n = DateTime.now();
@@ -50,19 +45,8 @@ class DayInfo {
           : offset == -1
               ? 'أمس'
               : _dayLong[date.weekday]!;
-  String get short => offset == 0 ? 'اليوم' : _dayShort[date.weekday]!;
-  String get dayNum => fmtNum(date.day);
   String get month => monthNames[date.month - 1];
   String get full => '$label ${fmtNum(date.day)} $month';
-}
-
-/// الوقت بالدقائق بعد الساعة 4:00 مساءً
-String fmtTime(int minutesAfter4pm) {
-  final total = 16 * 60 + minutesAfter4pm;
-  var h = (total ~/ 60) % 12;
-  if (h == 0) h = 12;
-  final mm = (total % 60).toString().padLeft(2, '0');
-  return '${fmtNum(h)}:${fmtNum(mm)} م';
 }
 
 /// الساعة من تاريخ فعلي: "4:58 م"
@@ -79,8 +63,6 @@ String fmtRemaining(Duration d) {
   if (h == 0) return '${fmtNum(m)} دقيقة';
   return m == 0 ? hours : '$hours و ${fmtNum(m)} دقيقة';
 }
-
-String fmtRange(int start, int duration) => 'من ${fmtTime(start)} إلى ${fmtTime(start + duration)}';
 
 const categories = {
   'dental': 'كشف وعلاج الأسنان',

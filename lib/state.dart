@@ -400,12 +400,6 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// يضيف أو يشيل (زر السلة على بطاقة الخدمة)
-  void toggleCart(String serviceId) {
-    final e = cartEntry(serviceId);
-    e == null ? addToCart(serviceId) : removeFromCart(e);
-  }
-
   /// الطبيب لخدمة في السلة (null = الطبيب المتاح)
   void setCartDoctor(CartEntry e, String? doctorId) {
     e.doctorId = doctorId;

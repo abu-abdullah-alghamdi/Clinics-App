@@ -22,9 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # نفس نسخة فلاتر اللي على الماك، عشان نتيجة الفحص هنا = نتيجته عندك
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.0
           cache: true
 
       - run: flutter pub get

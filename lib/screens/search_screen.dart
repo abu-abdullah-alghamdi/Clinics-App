@@ -2,7 +2,6 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data.dart';
-import '../main.dart';
 import '../services_data.dart';
 import '../state.dart';
 import '../theme.dart';

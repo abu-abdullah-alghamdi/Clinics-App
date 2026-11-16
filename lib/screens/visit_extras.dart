@@ -1,4 +1,3 @@
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -42,10 +41,6 @@ void showClinicContact(BuildContext context) {
     ],
   );
 }
-
-/// تنبيه آبل بزر واحد
-Future<void> showInfoAlert(BuildContext context, String title, String message) =>
-    CNAlert.show<String>(context: context, title: title, message: message, actions: const [CNAlertAction(label: 'تم', isCancel: true)]);
 
 // ───────── التقييم بعد الزيارة
 

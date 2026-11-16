@@ -405,8 +405,8 @@ class GlassNavBar extends StatelessWidget {
           s.setTab(tab);
         }
       },
-      // التبويب المختار (الأيقونة والكلمة) بلون العيادة
-      tint: AppColors.accent,
+      // التبويب المختار (الأيقونة والكلمة) بلون العيادة لو يبان، وإلا أسود
+      tint: AppColors.accentOnBar,
       labelFontFamily: appFont,
       labelFontSize: 11,
       iconSize: _iconSize,

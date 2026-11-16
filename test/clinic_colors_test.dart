@@ -23,6 +23,7 @@ import 'package:clinics_app/screens/service_screen.dart';
 import 'package:clinics_app/services_data.dart';
 import 'package:clinics_app/states.dart';
 import 'package:clinics_app/theme.dart';
+import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -103,6 +104,11 @@ _Scan _scan(WidgetTester tester) {
     // أقرب خلفية مصمتة تحت النص
     Color? under;
     e.visitAncestorElements((a) {
+      // الشريط العائم: سطحه زجاج فاتح (أبيض تقريباً) مهما كان تحته
+      if (a.widget is CNTabBar) {
+        under = AppColors.white;
+        return false;
+      }
       final c = _bgOf(a.widget);
       if (c != null && (c.a * 255).round() == 255) {
         under = c;

@@ -341,9 +341,6 @@ const doctorBranches = {
   'd4': ['hamdaniyah', 'rawdah'],
 };
 
-List<Branch> branchesOf(String doctorId) =>
-    [for (final id in doctorBranches[doctorId] ?? const <String>[]) branchById(id)];
-
 /// الأطباء اللي يقدمون الخدمة في فرع معيّن
 List<Doctor> doctorsFor(Service sv, String branchId) => doctors
     .where((d) => (doctorBranches[d.id] ?? const <String>[]).contains(branchId))

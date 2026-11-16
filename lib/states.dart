@@ -624,9 +624,6 @@ Widget receiptCard(List<Widget> rows) => Container(
       child: Column(children: rows),
     );
 
-/// تاريخ ووقت العملية: "7 نوفمبر 2026، 4:58 م"
-String fmtStamp(DateTime d) => '${fmtNum(d.day)} ${monthNames[d.month - 1]} ${fmtNum(d.year)}، ${fmtClock(d)}';
-
 enum PaymentFailAction { retry, changeMethod }
 
 /// فشل الدفع: صفحة كاملة، وزرين (حاول مرة ثانية / طريقة دفع ثانية)
