@@ -251,7 +251,8 @@ Widget pageGradient(BuildContext context) => Positioned(
     );
 
 /// زجاج آبل الحقيقي متاح (iOS 26 وأحدث)
-bool get nativeGlass => defaultTargetPlatform == TargetPlatform.iOS && PlatformVersion.shouldUseNativeControls;
+// على الويب (معاينة لوحة العيادة) ما فيه أزرار آبل الأصلية، فيطلع البديل المرسوم
+bool get nativeGlass => !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS && PlatformVersion.shouldUseNativeControls;
 
 /// زر دائري من آبل نفسها (زجاج iOS 26) للأزرار الثابتة فوق الصفحة.
 /// على الأنظمة الأقدم يطلع زجاج مرسوم من التطبيق بنفس الحجم.

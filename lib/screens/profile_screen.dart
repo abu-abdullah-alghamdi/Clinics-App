@@ -1,10 +1,10 @@
-import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../main.dart';
 import '../state.dart';
+import '../states.dart';
 import '../theme.dart';
 import '../widgets.dart';
 import 'shell.dart';
@@ -74,16 +74,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _deleteAccount() async {
     final s = AppScope.read(context);
     // تنبيه آبل الأصلي (iOS 26)
-    final result = await CNAlert.show<String>(
-      context: context,
+    final delete = await showNativeAlert(
+      context,
       title: 'حذف الحساب؟',
       message: 'بيتم حذف بياناتك ومواعيدك من التطبيق نهائياً، وما تقدر تتراجع',
-      actions: const [
-        CNAlertAction(label: 'إلغاء', isCancel: true),
-        CNAlertAction(label: 'حذف', value: 'delete', isDestructive: true),
-      ],
+      cancel: 'إلغاء',
+      destructive: 'حذف',
     );
-    if (result?.value == 'delete' && mounted) {
+    if (delete && mounted) {
       s.deleteAccount();
       Navigator.of(context).popUntil((r) => r.isFirst);
     }

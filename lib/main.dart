@@ -31,7 +31,8 @@ Future<void> main() async {
   runApp(ClinicsApp(showOnboarding: !seen));
 }
 
-ThemeData _theme() {
+/// ثيم التطبيق (ولوحة العيادة تستخدمه بعد)
+ThemeData appTheme() {
   final base = ThemeData(
     useMaterial3: true,
     fontFamily: appFont,
@@ -93,7 +94,7 @@ class ClinicsApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         // التطبيق فاتح دايماً (حتى لو الجوال على الوضع الداكن)
-        theme: _theme(),
+        theme: appTheme(),
         builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
           value: SystemUiOverlayStyle.dark,
           child: MediaQuery(

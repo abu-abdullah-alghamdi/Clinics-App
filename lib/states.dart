@@ -5,6 +5,7 @@ import 'dart:math' as math;
 
 import 'package:cupertino_native_better/cupertino_native_better.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -751,6 +752,21 @@ Future<bool> showNativeAlert(
   required String cancel,
   required String destructive,
 }) async {
+  // على الويب (معاينة لوحة العيادة) ما فيه تنبيه آبل الأصلي: نفس التنبيه مرسوم
+  if (kIsWeb) {
+    final ok = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          CupertinoDialogAction(isDefaultAction: true, onPressed: () => Navigator.of(ctx).pop(false), child: Text(cancel)),
+          CupertinoDialogAction(isDestructiveAction: true, onPressed: () => Navigator.of(ctx).pop(true), child: Text(destructive)),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
   final result = await CNAlert.show<String>(
     context: context,
     title: title,

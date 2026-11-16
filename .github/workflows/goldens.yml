@@ -11,6 +11,11 @@ name: صور الشاشات المرجعية
 on:
   push:
   workflow_dispatch:
+    inputs:
+      update:
+        description: توليد الصور من جديد بدل المقارنة
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -34,7 +39,7 @@ jobs:
       - name: توليد أو مقارنة
         run: |
           MODE=compare
-          if [ ! -d test_goldens/goldens ] || echo "${{ github.event.head_commit.message }}" | grep -q '\[update-goldens\]'; then
+          if [ ! -d test_goldens/goldens ] || [ "${{ inputs.update }}" = "true" ] || echo "${{ github.event.head_commit.message }}" | grep -q '\[update-goldens\]'; then
             MODE=update
           fi
           echo "MODE=$MODE" >> "$GITHUB_ENV"

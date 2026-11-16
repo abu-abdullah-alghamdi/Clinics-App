@@ -1,4 +1,6 @@
 import 'package:cupertino_native_better/cupertino_native_better.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -410,16 +412,43 @@ class GlassNavBar extends StatelessWidget {
       labelFontFamily: appFont,
       labelFontSize: 11,
       iconSize: _iconSize,
+      // على الويب (معاينة لوحة العيادة) رموز آبل ما تنرسم، فتطلع أيقونات مرسومة بدالها
       items: const [
-        CNTabBarItem(label: 'الرئيسية', icon: CNSymbol('house', size: _iconSize), activeIcon: CNSymbol('house.fill', size: _iconSize)),
-        CNTabBarItem(label: 'الأطباء', icon: CNSymbol('stethoscope', size: _iconSize), activeIcon: CNSymbol('stethoscope', size: _iconSize)),
+        CNTabBarItem(
+          label: 'الرئيسية',
+          icon: CNSymbol('house', size: _iconSize),
+          activeIcon: CNSymbol('house.fill', size: _iconSize),
+          customIcon: kIsWeb ? CupertinoIcons.house : null,
+          activeCustomIcon: kIsWeb ? CupertinoIcons.house_fill : null,
+        ),
+        CNTabBarItem(
+          label: 'الأطباء',
+          icon: CNSymbol('stethoscope', size: _iconSize),
+          activeIcon: CNSymbol('stethoscope', size: _iconSize),
+          customIcon: kIsWeb ? Icons.medical_services_outlined : null,
+          activeCustomIcon: kIsWeb ? Icons.medical_services : null,
+        ),
         CNTabBarItem(
           label: 'الخدمات',
           icon: CNSymbol('square.grid.2x2', size: _iconSize),
           activeIcon: CNSymbol('square.grid.2x2.fill', size: _iconSize),
+          customIcon: kIsWeb ? CupertinoIcons.square_grid_2x2 : null,
+          activeCustomIcon: kIsWeb ? CupertinoIcons.square_grid_2x2_fill : null,
         ),
-        CNTabBarItem(label: 'مواعيدي', icon: CNSymbol('calendar', size: _iconSize), activeIcon: CNSymbol('calendar', size: _iconSize)),
-        CNTabBarItem(label: 'حسابي', icon: CNSymbol('person.crop.circle', size: _iconSize), activeIcon: CNSymbol('person.crop.circle.fill', size: _iconSize)),
+        CNTabBarItem(
+          label: 'مواعيدي',
+          icon: CNSymbol('calendar', size: _iconSize),
+          activeIcon: CNSymbol('calendar', size: _iconSize),
+          customIcon: kIsWeb ? CupertinoIcons.calendar : null,
+          activeCustomIcon: kIsWeb ? CupertinoIcons.calendar : null,
+        ),
+        CNTabBarItem(
+          label: 'حسابي',
+          icon: CNSymbol('person.crop.circle', size: _iconSize),
+          activeIcon: CNSymbol('person.crop.circle.fill', size: _iconSize),
+          customIcon: kIsWeb ? CupertinoIcons.person_crop_circle : null,
+          activeCustomIcon: kIsWeb ? CupertinoIcons.person_crop_circle_fill : null,
+        ),
       ],
     );
   }
