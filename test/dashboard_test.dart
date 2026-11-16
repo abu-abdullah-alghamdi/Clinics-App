@@ -163,13 +163,15 @@ void main() {
 
         // النافذة تبدأ بأول يوم فيه وقت فاضي في الفترة المطلوبة: نختار أول وقت وأول طبيب
         Finder inSheet(String text) => find.descendant(of: find.byType(ScheduleSheet), matching: find.text(text));
+        // القائمة تبني اللي ظاهر بس: ننزل لين يطلع الطبيب
+        final sheetList = find.descendant(of: find.byType(ScheduleSheet), matching: find.byType(Scrollable)).first;
         final doc = desk.doctorsOf(r).first;
-        await tester.ensureVisible(inSheet(doc.name));
+        await tester.scrollUntilVisible(inSheet(doc.name), 120, scrollable: sheetList);
         await tester.tap(inSheet(doc.name));
         await _pump(tester, 3);
         final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
         final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
-        await tester.ensureVisible(inSheet(fmtClock(time)));
+        await tester.scrollUntilVisible(inSheet(fmtClock(time)), -120, scrollable: sheetList);
         await tester.tap(inSheet(fmtClock(time)));
         await _pump(tester, 3);
         final send = find.ancestor(of: inSheet('إرسال للعميل'), matching: find.byType(PillButton));
