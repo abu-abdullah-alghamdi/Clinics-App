@@ -24,7 +24,7 @@ class AppointmentsPage extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 16, 16, 40),
       children: [
-        PageHeader(title: 'المواعيد', trailing: active == 0 ? null : Tag('${fmtNum(active)} قادم')),
+        PageHeader(title: 'المواعيد', trailing: active == 0 ? null : Tag('${fmtNum(active)} قادم', bg: AppColors.white)),
         const BranchFilter(),
         const _DayStrip(),
         const SizedBox(height: 14),
@@ -118,8 +118,8 @@ class AppointmentRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 74,
-          child: Text(fmtClock(b.at!), style: ts(18, weight: FontWeight.w600)),
+          width: 92,
+          child: Text(fmtClock(b.at!), maxLines: 1, style: ts(18, weight: FontWeight.w600)),
         ),
         Expanded(
           child: Column(

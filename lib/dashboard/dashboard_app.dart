@@ -311,7 +311,8 @@ class _BottomBar extends StatelessWidget {
                   child: _BarItem(
                     label: item.label,
                     icon: item.icon,
-                    count: item.count,
+                    // الشارة الحمراء للطلبات اللي تنتظر بس
+                    count: item.page == DeskPage.requests ? item.count : 0,
                     selected: desk.page == item.page,
                     onTap: () => desk.go(item.page),
                   ),

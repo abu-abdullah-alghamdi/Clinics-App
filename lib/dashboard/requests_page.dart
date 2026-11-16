@@ -24,7 +24,7 @@ class RequestsPage extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, MediaQuery.paddingOf(context).top + 16, 16, 40),
       children: [
-        PageHeader(title: 'الطلبات', trailing: list.isEmpty ? null : Tag('${fmtNum(list.length)} بانتظار الموعد')),
+        PageHeader(title: 'الطلبات', trailing: list.isEmpty ? null : Tag('${fmtNum(list.length)} بانتظار الموعد', bg: AppColors.white)),
         const BranchFilter(),
         if (list.isEmpty)
           const EmptyNote(icon: CupertinoIcons.checkmark_seal, text: 'كل الطلبات تحدد لها موعد')
