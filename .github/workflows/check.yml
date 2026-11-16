@@ -70,5 +70,10 @@ jobs:
             --dart-define-from-file=clinics/noor/config.json \
             --dart-define=CLINIC_FIXTURE=clinics/noor/config.json
 
+      # لوحة العيادة: موقع ويب من نفس الكود، لازم تنبني
+      - name: بناء لوحة العيادة (ويب)
+        if: hashFiles('lib/dashboard/main.dart') != ''
+        run: flutter build web -t lib/dashboard/main.dart --dart-define-from-file=clinics/demo/config.json --no-tree-shake-icons
+
       - name: نتيجة التحليل
         run: test -z "$has_errors"
