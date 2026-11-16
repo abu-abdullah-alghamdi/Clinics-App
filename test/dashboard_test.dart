@@ -8,6 +8,7 @@ import 'package:clinics_app/dashboard/schedule_sheet.dart';
 import 'package:clinics_app/data.dart';
 import 'package:clinics_app/main.dart';
 import 'package:clinics_app/services_data.dart';
+import 'package:clinics_app/widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -162,15 +163,17 @@ void main() {
 
         // النافذة تبدأ بأول يوم فيه وقت فاضي في الفترة المطلوبة: نختار أول وقت وأول طبيب
         Finder inSheet(String text) => find.descendant(of: find.byType(ScheduleSheet), matching: find.text(text));
-        final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
-        final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()));
-        await tester.ensureVisible(inSheet(fmtClock(time)));
-        await tester.tap(inSheet(fmtClock(time)));
-        await _pump(tester, 3);
         final doc = desk.doctorsOf(r).first;
         await tester.ensureVisible(inSheet(doc.name));
         await tester.tap(inSheet(doc.name));
         await _pump(tester, 3);
+        final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
+        final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
+        await tester.ensureVisible(inSheet(fmtClock(time)));
+        await tester.tap(inSheet(fmtClock(time)));
+        await _pump(tester, 3);
+        final send = find.ancestor(of: inSheet('إرسال للعميل'), matching: find.byType(PillButton));
+        expect(tester.widget<PillButton>(send).enabled, isTrue);
 
         await tester.tap(inSheet('إرسال للعميل'));
         await _pump(tester);
@@ -223,7 +226,8 @@ void main() {
       Finder inSheet(String text) => find.descendant(of: find.byType(CancelSheet), matching: find.text(text));
       await tester.tap(inSheet('الطبيب غير متاح'));
       await _pump(tester, 3);
-      await tester.tap(inSheet('إلغاء الموعد'));
+      // الزر تحت (العنوان فوق نفس الكلمة)
+      await tester.tap(inSheet('إلغاء الموعد').last);
       await _pump(tester);
       expect(desk.all.where((x) => x.booking.status == RequestStatus.cancelled && x.booking.clinicCancelReason == 'الطبيب غير متاح'), isNotEmpty);
       expect(r.booking.status == RequestStatus.cancelled || r.booking.status == RequestStatus.scheduled, isTrue);
