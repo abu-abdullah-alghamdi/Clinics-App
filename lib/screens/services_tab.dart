@@ -190,7 +190,7 @@ class _ServicesTabState extends State<ServicesTab> with SingleTickerProviderStat
         // الخدمات تمر تحت الشريط اللي فوق (مثل آبل)، ومسافة أولها بطول الشريط
         CustomScrollView(
           controller: _scroll,
-          cacheExtent: 4000,
+          scrollCacheExtent: const ScrollCacheExtent.pixels(4000),
           slivers: [
             SliverToBoxAdapter(
               child: AnimatedBuilder(

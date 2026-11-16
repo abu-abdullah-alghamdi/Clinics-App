@@ -309,8 +309,8 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
   bool _decided = false;
   Offset? _downAt;
   VelocityTracker? _velocity;
-  late final AnimationController _settle = AnimationController.unbounded(vsync: this)
-    ..addListener(() => _setDrag(_settle.value));
+  // ينشأ في initState (مو أول استخدام): لو انقفلت الصفحة بدون سحب، ما ينشأ وقت الإغلاق ويطيح
+  late final AnimationController _settle;
 
   void _setDrag(double v) {
     _drag = v < 0 ? 0 : v;
@@ -367,6 +367,7 @@ class _ServiceScreenState extends State<ServiceScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    _settle = AnimationController.unbounded(vsync: this)..addListener(() => _setDrag(_settle.value));
     _scroll.addListener(() {
       final v = (_scroll.offset / 160).clamp(0.0, 1.0);
       _down.value = v;

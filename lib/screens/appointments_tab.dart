@@ -337,7 +337,7 @@ class RequestCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (scheduled)
-            _whenBox(at!)
+            _whenBox(at)
           else if (b.status == RequestStatus.sent)
             _box(
               Row(
