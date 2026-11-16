@@ -253,11 +253,16 @@ void main() {
         // زر الطبيب (اسمه ممكن يطلع بعد في بطاقة الطلب والملخص)
         final docChip = find.descendant(of: find.byType(ScheduleSheet), matching: find.byWidgetPredicate((w) => w is DoctorAvatar && w.doctor.id == doc.id));
         await tester.scrollUntilVisible(docChip, 120, scrollable: sheetList);
+        // ممكن ينبني وهو تحت حافة القائمة: نخليه ظاهر قبل الضغط
+        await tester.ensureVisible(docChip);
+        await _pump(tester, 3);
         await tester.tap(docChip);
         await _pump(tester, 3);
         final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
         final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
         await tester.scrollUntilVisible(inSheet(fmtClock(time)), -120, scrollable: sheetList);
+        await tester.ensureVisible(inSheet(fmtClock(time)));
+        await _pump(tester, 3);
         await tester.tap(inSheet(fmtClock(time)));
         await _pump(tester, 3);
         final send = find.ancestor(of: inSheet('إرسال للعميل'), matching: find.byType(PillButton));
@@ -317,11 +322,16 @@ void main() {
       // زر الطبيب (اسمه ممكن يطلع بعد في بطاقة الطلب والملخص)
       final docChip = find.descendant(of: find.byType(ScheduleSheet), matching: find.byWidgetPredicate((w) => w is DoctorAvatar && w.doctor.id == doc.id));
       await tester.scrollUntilVisible(docChip, 120, scrollable: sheetList);
+      // ممكن ينبني وهو تحت حافة القائمة: نخليه ظاهر قبل الضغط
+      await tester.ensureVisible(docChip);
+      await _pump(tester, 3);
       await tester.tap(docChip);
       await _pump(tester, 3);
       final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
       final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
       await tester.scrollUntilVisible(inSheet(fmtClock(time)), -120, scrollable: sheetList);
+      await tester.ensureVisible(inSheet(fmtClock(time)));
+      await _pump(tester, 3);
       await tester.tap(inSheet(fmtClock(time)));
       await _pump(tester, 3);
 
