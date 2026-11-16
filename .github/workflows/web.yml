@@ -1,0 +1,23 @@
+# بناء لوحة العيادة (ويب) والتأكد إنها تنبني. يشتغل يدوي بس.
+name: بناء لوحة العيادة
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: الملف الرئيسي
+        default: lib/dashboard/main.dart
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.0
+          cache: true
+      - run: flutter pub get
+      - name: بناء الويب
+        run: flutter build web -t ${{ inputs.target }} --dart-define-from-file=clinics/demo/config.json --no-tree-shake-icons
