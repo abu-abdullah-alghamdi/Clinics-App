@@ -58,7 +58,7 @@ Future<void> _shot(
   WidgetTester tester,
   String name,
   Size size, {
-  StaffRole? role = StaffRole.owner,
+  StaffRole? role = StaffRole.admin,
   DeskPage page = DeskPage.requests,
   Future<void> Function(WidgetTester tester, DeskState desk)? then,
 }) async {
@@ -109,5 +109,7 @@ void main() {
   testWidgets('اللوحة: الطلبات (جوال)', (t) => _shot(t, 'd08_requests_phone', phone), variant: ios);
   testWidgets('اللوحة: تحديد الموعد (جوال)', (t) => _shot(t, 'd09_schedule_phone', phone, then: _openSchedule), variant: ios);
   testWidgets('اللوحة: المواعيد (جوال)', (t) => _shot(t, 'd10_appointments_phone', phone, page: DeskPage.appointments), variant: ios);
-  testWidgets('اللوحة: الطبيب', (t) => _shot(t, 'd11_doctor_desktop', desktop, role: StaffRole.doctor, page: DeskPage.appointments), variant: ios);
+  testWidgets('اللوحة: الاستقبال', (t) => _shot(t, 'd11_reception_desktop', desktop, role: StaffRole.reception), variant: ios);
+  testWidgets('اللوحة: معاينة التطبيق (كمبيوتر)', (t) => _shot(t, 'd12_preview_desktop', desktop, page: DeskPage.preview), variant: ios);
+  testWidgets('اللوحة: الدخول (جوال)', (t) => _shot(t, 'd13_login_phone', phone, role: null), variant: ios);
 }

@@ -33,6 +33,13 @@ void _screen(WidgetTester tester, Size size) {
 
 Staff _role(StaffRole r) => demoStaff.firstWhere((s) => s.role == r);
 
+Future<void> _login(WidgetTester tester, String email) async {
+  await tester.enterText(find.byType(TextField).at(0), email);
+  await tester.enterText(find.byType(TextField).at(1), '1234');
+  await tester.pump();
+  await tester.tap(find.text('دخول'));
+}
+
 Future<void> _pump(WidgetTester tester, [int times = 10]) async {
   for (var i = 0; i < times; i++) {
     await tester.pump(const Duration(milliseconds: 100));
@@ -52,38 +59,37 @@ void main() {
     await _loadFonts();
   });
 
-  group('الصلاحيات', () {
-    test('المالك يشوف كل الفروع، والاستقبال فرعه بس', () {
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
-      final branchesSeen = desk.visible.map((r) => r.booking.branchId).toSet();
-      expect(branchesSeen.length, greaterThan(1));
-
-      desk.signIn(_role(StaffRole.reception));
-      final own = _role(StaffRole.reception).branchId;
-      expect(desk.visible, isNotEmpty);
-      expect(desk.visible.every((r) => r.booking.branchId == own), isTrue);
+  group('الدخول والصلاحيات', () {
+    test('a@noor.com الاستقبال، a1@noor.com إدارة العيادة، وكلمة المرور 1234', () {
+      expect(findStaff('a@noor.com', '1234')?.role, StaffRole.reception);
+      expect(findStaff('a1@noor.com', '1234')?.role, StaffRole.admin);
+      expect(findStaff(' A1@Noor.com ', '1234')?.role, StaffRole.admin);
+      expect(findStaff('a@noor.com', '0000'), isNull);
+      expect(findStaff('x@noor.com', '1234'), isNull);
+      expect(demoStaff.length, 2);
     });
 
-    test('الطبيب يشوف مواعيده بس، وما يحدد مواعيد', () {
-      final desk = DeskState()..signIn(_role(StaffRole.doctor));
-      final doc = _role(StaffRole.doctor).doctorId;
-      expect(desk.visible.every((r) => r.booking.doctorId == doc), isTrue);
-      expect(desk.visible.any((r) => r.booking.status == RequestStatus.sent), isFalse);
-      expect(StaffRole.doctor.canSchedule, isFalse);
-      expect(StaffRole.doctor.seesReports, isFalse);
-      expect(desk.page, DeskPage.appointments);
-    });
-
-    test('التقارير للمالك ومدير الفرع بس', () {
-      expect(StaffRole.owner.seesReports, isTrue);
-      expect(StaffRole.manager.seesReports, isTrue);
+    test('الإدارة لها كل الصلاحيات، والاستقبال بدون التقارير والمعاينة', () {
+      expect(StaffRole.admin.canSchedule && StaffRole.admin.canManage && StaffRole.admin.seesReports && StaffRole.admin.seesPreview, isTrue);
+      expect(StaffRole.reception.canSchedule && StaffRole.reception.canManage, isTrue);
       expect(StaffRole.reception.seesReports, isFalse);
+      expect(StaffRole.reception.seesPreview, isFalse);
+    });
+
+    test('الدخول الغلط ما يدخل، والصح يفتح الطلبات', () {
+      final desk = DeskState();
+      expect(desk.login('a@noor.com', '12345'), isFalse);
+      expect(desk.staff, isNull);
+      expect(desk.login('a@noor.com', '1234'), isTrue);
+      expect(desk.staff?.role, StaffRole.reception);
+      expect(desk.page, DeskPage.requests);
+      expect(desk.visible, isNotEmpty);
     });
   });
 
   group('الطلبات والمواعيد', () {
     test('الطلبات الجديدة الأقدم أول', () {
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
       final list = desk.waiting;
       expect(list, isNotEmpty);
       for (var i = 1; i < list.length; i++) {
@@ -92,7 +98,7 @@ void main() {
     });
 
     test('تحديد موعد: يصير مؤكد، والطبيب يصير مشغول بنفس الوقت', () {
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
       final r = desk.waiting.first;
       final day = openDays()[1];
       final at = slotsFor(day, Period.evening).first;
@@ -108,7 +114,7 @@ void main() {
     });
 
     test('طلب من التطبيق: يطلع في اللوحة، وتحديد موعده يحدّث التطبيق ويرسل إشعار', () {
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
       final booking = appState.addRequest(serviceId: 's1', branchId: 'rawdah', period: Period.morning);
       final r = desk.waiting.firstWhere((x) => x.id == booking.id);
       expect(r.fromApp, isTrue);
@@ -122,7 +128,7 @@ void main() {
     });
 
     test('الإلغاء بسبب يوصل للتطبيق', () {
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
       final booking = appState.addRequest(serviceId: 'c1', branchId: 'salamah', period: Period.noon);
       final r = desk.all.firstWhere((x) => x.id == booking.id);
       desk.cancel(r, 'الطبيب غير متاح');
@@ -152,9 +158,10 @@ void main() {
         await _pump(tester);
         expect(find.text('لوحة العيادة'), findsWidgets);
 
-        await tester.tap(find.text(_role(StaffRole.owner).name));
+        await _login(tester, 'a1@noor.com');
         await _pump(tester);
         expect(find.text('الطلبات'), findsWidgets);
+        expect(find.text('إدارة العيادة'), findsWidgets);
 
         final r = desk.waiting.first;
         await tester.tap(find.text('حدد الموعد').first);
@@ -194,28 +201,47 @@ void main() {
         desk.go(DeskPage.reports);
         await _pump(tester);
         expect(find.text('سرعة الرد'), findsOneWidget);
-        if (size.width < 1240) {
-          desk.go(DeskPage.preview);
-          await _pump(tester);
-        }
+        // المعاينة صفحة مستقلة: التطبيق ما يكون موجود في الصفحات الثانية
+        desk.go(DeskPage.preview);
+        await _pump(tester);
+        expect(find.text('معاينة التطبيق'), findsWidgets);
         await _close(tester);
       });
     }
 
-    testWidgets('الطبيب: مواعيده بدون صفحة الطلبات', (tester) async {
+    testWidgets('الاستقبال: الطلبات والمواعيد بس، بدون التقارير والمعاينة', (tester) async {
       _screen(tester, const Size(1440, 900));
-      final desk = DeskState()..signIn(_role(StaffRole.doctor));
+      final desk = DeskState();
       await tester.pumpWidget(DashboardApp(desk: desk));
       await _pump(tester);
-      expect(find.text('المواعيد'), findsWidgets);
-      expect(find.text('حدد الموعد'), findsNothing);
+      await _login(tester, 'a@noor.com');
+      await _pump(tester);
+      expect(desk.staff?.role, StaffRole.reception);
+      expect(find.text('الاستقبال'), findsWidgets);
+      expect(find.text('حدد الموعد'), findsWidgets);
       expect(find.text('التقارير'), findsNothing);
+      expect(find.text('معاينة التطبيق'), findsNothing);
+      await _close(tester);
+    });
+
+    testWidgets('بيانات غلط: يطلع تنبيه وما يدخل', (tester) async {
+      _screen(tester, const Size(390, 844));
+      final desk = DeskState();
+      await tester.pumpWidget(DashboardApp(desk: desk));
+      await _pump(tester);
+      await tester.enterText(find.byType(TextField).at(0), 'a@noor.com');
+      await tester.enterText(find.byType(TextField).at(1), '9999');
+      await tester.pump();
+      await tester.tap(find.text('دخول'));
+      await _pump(tester);
+      expect(find.text('البريد أو كلمة المرور غير صحيحة'), findsOneWidget);
+      expect(desk.staff, isNull);
       await _close(tester);
     });
 
     testWidgets('إلغاء موعد بسبب', (tester) async {
       _screen(tester, const Size(1440, 900));
-      final desk = DeskState()..signIn(_role(StaffRole.owner));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
       desk.go(DeskPage.appointments);
       // أول يوم فيه مواعيد مؤكدة (لو اليوم جمعة يكون بكرة)
       desk.setDay([for (var i = 0; i < 7; i++) DayInfo(i).date]

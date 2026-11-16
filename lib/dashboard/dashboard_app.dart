@@ -82,7 +82,9 @@ class _DeskHome extends StatelessWidget {
   }
 }
 
-/// الإطار: القائمة على اليمين، الصفحة بالنص، والمعاينة على اليسار (في الشاشات العريضة)
+/// الإطار: القائمة على اليمين والصفحة جنبها (وفي الجوال شريط تحت)
+///
+/// المعاينة صفحة مستقلة للإدارة بس، وتكون برّا المتصفح عشان نوافذ التطبيق تنفتح داخل الجوال
 class DeskFrame extends StatelessWidget {
   const DeskFrame({super.key, required this.navigator});
 
@@ -95,21 +97,30 @@ class DeskFrame extends StatelessWidget {
     final desk = DeskScope.of(context);
     final staff = desk.staff;
     if (staff == null) return navigator;
-    final size = deskSize(context);
-    final docked = size == DeskSize.desktop;
-    final previewPage = !docked && desk.page == DeskPage.preview;
+    final preview = staff.role.seesPreview && desk.page == DeskPage.preview;
+    final phone = deskSize(context) == DeskSize.phone;
 
     final content = Stack(
       children: [
-        Positioned.fill(child: Visibility(visible: !previewPage, maintainState: true, child: navigator)),
-        if (!docked)
+        Positioned.fill(child: Visibility(visible: !preview, maintainState: true, child: navigator)),
+        if (staff.role.seesPreview)
           Positioned.fill(
             child: Visibility(
-              visible: previewPage,
+              visible: preview,
               maintainState: true,
               child: ColoredBox(
                 color: AppColors.bg,
-                child: SafeArea(child: Padding(padding: const EdgeInsets.all(16), child: AppPreview(key: _previewKey))),
+                child: SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      children: [
+                        if (!phone) const PageHeader(title: 'معاينة التطبيق'),
+                        Expanded(child: AppPreview(key: _previewKey)),
+                      ],
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -117,7 +128,7 @@ class DeskFrame extends StatelessWidget {
       ],
     );
 
-    if (size == DeskSize.phone) {
+    if (phone) {
       return Material(
         color: AppColors.bg,
         child: Column(children: [Expanded(child: content), const _BottomBar()]),
@@ -125,39 +136,20 @@ class DeskFrame extends StatelessWidget {
     }
     return Material(
       color: AppColors.bg,
-      child: Row(
-        children: [
-          const _Sidebar(),
-          Expanded(child: content),
-          if (docked)
-            Container(
-              width: 420,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text('معاينة التطبيق', style: ts(16, weight: FontWeight.w600, color: AppColors.body)),
-                  ),
-                  Expanded(child: AppPreview(key: _previewKey)),
-                ],
-              ),
-            ),
-        ],
-      ),
+      child: Row(children: [const _Sidebar(), Expanded(child: content)]),
     );
   }
 }
 
 /// عناصر القائمة حسب الصلاحية
-List<({DeskPage page, String label, IconData icon, int count})> _items(DeskState desk, {required bool withPreview}) {
+List<({DeskPage page, String label, IconData icon, int count})> _items(DeskState desk) {
   final role = desk.staff!.role;
   final today = desk.appointmentsOn(appToday).where((r) => r.booking.status == RequestStatus.scheduled).length;
   return [
     if (role.canSchedule) (page: DeskPage.requests, label: 'الطلبات', icon: CupertinoIcons.tray_arrow_down, count: desk.waiting.length),
     (page: DeskPage.appointments, label: 'المواعيد', icon: CupertinoIcons.calendar, count: today),
     if (role.seesReports) (page: DeskPage.reports, label: 'التقارير', icon: CupertinoIcons.chart_bar, count: 0),
-    if (withPreview) (page: DeskPage.preview, label: 'المعاينة', icon: CupertinoIcons.device_phone_portrait, count: 0),
+    if (role.seesPreview) (page: DeskPage.preview, label: 'معاينة التطبيق', icon: CupertinoIcons.device_phone_portrait, count: 0),
   ];
 }
 
@@ -168,7 +160,6 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final desk = DeskScope.of(context);
     final staff = desk.staff!;
-    final docked = deskSize(context) == DeskSize.desktop;
     final clinic = ClinicConfig.current;
     return Container(
       width: 250,
@@ -188,14 +179,14 @@ class _Sidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(clinic.appName, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(17, weight: FontWeight.w600)),
-                        Text('لوحة العيادة', style: ts(13, color: AppColors.faint)),
+                        Text(staff.role.label, style: ts(13, color: AppColors.faint)),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            for (final item in _items(desk, withPreview: !docked))
+            for (final item in _items(desk))
               Padding(
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
                 child: _NavTile(
@@ -270,21 +261,14 @@ class _StaffCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                PatientAvatar(name: staff.name.replaceFirst('د. ', ''), size: 40),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(staff.name, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(15, weight: FontWeight.w600)),
-                      Text('${staff.role.label}، ${staff.scope}', maxLines: 2, style: ts(12, color: AppColors.faint)),
-                    ],
-                  ),
-                ),
+                RoleBadge(role: staff.role),
+                const Spacer(),
               ],
             ),
+            const SizedBox(height: 8),
+            Text(staff.email, textDirection: TextDirection.ltr, textAlign: TextAlign.end, maxLines: 1, overflow: TextOverflow.ellipsis, style: ts(13, color: AppColors.faint)),
             const SizedBox(height: 10),
-            PillButton(label: 'تبديل الحساب', height: 40, fontSize: 14, padding: 14, bg: AppColors.white, onTap: () => DeskScope.read(context).signOut()),
+            PillButton(label: 'تسجيل الخروج', height: 40, fontSize: 14, padding: 14, bg: AppColors.white, onTap: () => DeskScope.read(context).signOut()),
           ],
         ),
       );
@@ -297,7 +281,7 @@ class _BottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final desk = DeskScope.of(context);
-    final items = _items(desk, withPreview: true);
+    final items = _items(desk);
     return Container(
       color: AppColors.white,
       child: SafeArea(
@@ -514,49 +498,118 @@ class _ArrivalToastState extends State<_ArrivalToast> {
 
 // ───────── الدخول
 
-class _LoginPage extends StatelessWidget {
+class _LoginPage extends StatefulWidget {
   const _LoginPage();
+
+  @override
+  State<_LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<_LoginPage> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+  final _passwordFocus = FocusNode();
+  bool _wrong = false;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    _passwordFocus.dispose();
+    super.dispose();
+  }
+
+  bool get _ready => _email.text.trim().isNotEmpty && _password.text.isNotEmpty;
+
+  void _submit() {
+    if (!_ready) return;
+    final ok = DeskScope.read(context).login(_email.text, _password.text);
+    if (!ok) setState(() => _wrong = true);
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool password = false,
+    FocusNode? focus,
+    TextInputAction action = TextInputAction.next,
+    VoidCallback? onSubmit,
+  }) =>
+      Container(
+        height: 60,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(22)),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: AppColors.faint),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                focusNode: focus,
+                obscureText: password,
+                autocorrect: false,
+                enableSuggestions: !password,
+                keyboardType: password ? TextInputType.visiblePassword : TextInputType.emailAddress,
+                textInputAction: action,
+                textDirection: TextDirection.ltr,
+                autofillHints: [password ? AutofillHints.password : AutofillHints.email],
+                onChanged: (_) => setState(() => _wrong = false),
+                onSubmitted: (_) => onSubmit?.call(),
+                style: ts(17),
+                decoration: InputDecoration(border: InputBorder.none, hintText: hint, hintStyle: ts(17, color: AppColors.faint)),
+              ),
+            ),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
     final clinic = ClinicConfig.current;
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(20),
-          children: [
-            Center(child: _Monogram(size: 76, letter: clinic.monogram)),
-            const SizedBox(height: 16),
-            Text(clinic.appName, textAlign: TextAlign.center, style: ts(30, weight: FontWeight.w600)),
-            Text('لوحة العيادة', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
-            const SectionLabel('الدخول بحساب'),
-            for (final s in demoStaff)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: DeskCard(
-                  onTap: () => DeskScope.read(context).signIn(s),
-                  padding: const EdgeInsets.fromLTRB(14, 14, 18, 14),
-                  child: Row(
-                    children: [
-                      PatientAvatar(name: s.name.replaceFirst('د. ', ''), size: 46),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.name, style: ts(16, weight: FontWeight.w600)),
-                            Text('${s.role.label}، ${s.scope}', style: ts(13, color: AppColors.faint)),
-                          ],
-                        ),
-                      ),
-                      const Icon(CupertinoIcons.chevron_left, size: 18, color: AppColors.faint),
-                    ],
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: AutofillGroup(
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(20),
+            children: [
+              Center(child: _Monogram(size: 76, letter: clinic.monogram)),
+              const SizedBox(height: 16),
+              Text(clinic.appName, textAlign: TextAlign.center, style: ts(30, weight: FontWeight.w600)),
+              Text('لوحة العيادة', textAlign: TextAlign.center, style: ts(17, color: AppColors.body)),
+              const SizedBox(height: 28),
+              _field(
+                controller: _email,
+                hint: 'البريد الإلكتروني',
+                icon: CupertinoIcons.mail,
+                onSubmit: _passwordFocus.requestFocus,
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: _password,
+                hint: 'كلمة المرور',
+                icon: CupertinoIcons.lock,
+                password: true,
+                focus: _passwordFocus,
+                action: TextInputAction.done,
+                onSubmit: _submit,
+              ),
+              if (_wrong)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    'البريد أو كلمة المرور غير صحيحة',
+                    textAlign: TextAlign.center,
+                    style: ts(15, weight: FontWeight.w500, color: AppColors.red),
                   ),
                 ),
-              ),
-          ],
+              const SizedBox(height: 18),
+              PillButton(label: 'دخول', enabled: _ready, onTap: _submit),
+            ],
+          ),
         ),
       ),
     );

@@ -1,6 +1,7 @@
 /// عناصر مشتركة في لوحة العيادة (بنفس هوية التطبيق)
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../data.dart';
@@ -49,15 +50,26 @@ class PageHeader extends StatelessWidget {
   final Widget? trailing;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 8, 4, 14),
-        child: Row(
-          children: [
-            Expanded(child: Semantics(header: true, child: Text(title, style: ts(32, color: AppColors.title, height: 1.2)))),
-            if (trailing != null) trailing!,
-          ],
-        ),
-      );
+  Widget build(BuildContext context) {
+    // في الجوال ما فيه قائمة جانبية: نوع الحساب يطلع فوق العنوان
+    final role = DeskScope.of(context).staff?.role;
+    final phone = deskSize(context) == DeskSize.phone;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 4, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (phone && role != null) Padding(padding: const EdgeInsets.only(bottom: 10), child: RoleBadge(role: role)),
+          Row(
+            children: [
+              Expanded(child: Semantics(header: true, child: Text(title, style: ts(32, color: AppColors.title, height: 1.2)))),
+              if (trailing != null) trailing!,
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class SectionLabel extends StatelessWidget {
@@ -221,3 +233,31 @@ class SheetHeader extends StatelessWidget {
 
 /// "الأحد 22 نوفمبر، 5:30 م"
 String fmtAppointment(DateTime t) => '${fmtDay(t)}، ${fmtClock(t)}';
+
+/// نوع الحساب: الاستقبال أو إدارة العيادة
+class RoleBadge extends StatelessWidget {
+  const RoleBadge({super.key, required this.role});
+
+  final StaffRole role;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: role == StaffRole.admin ? AppColors.accent : AppColors.white,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              role == StaffRole.admin ? CupertinoIcons.person_badge_plus : CupertinoIcons.person_2,
+              size: 16,
+              color: role == StaffRole.admin ? AppColors.onAccent : AppColors.ink,
+            ),
+            const SizedBox(width: 6),
+            Text(role.label, style: ts(14, weight: FontWeight.w600, color: role == StaffRole.admin ? AppColors.onAccent : AppColors.ink)),
+          ],
+        ),
+      );
+}

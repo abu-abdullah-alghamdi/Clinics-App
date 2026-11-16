@@ -15,55 +15,56 @@ import '../services_data.dart';
 
 // ───────── الصلاحيات
 
-enum StaffRole { owner, manager, reception, doctor }
+/// مستخدمين بس: إدارة العيادة (كل الصلاحيات) والاستقبال
+enum StaffRole { admin, reception }
 
 extension StaffRoleInfo on StaffRole {
   String get label => switch (this) {
-        StaffRole.owner => 'المالك',
-        StaffRole.manager => 'مدير الفرع',
+        StaffRole.admin => 'إدارة العيادة',
         StaffRole.reception => 'الاستقبال',
-        StaffRole.doctor => 'طبيب',
       };
 
   /// تحديد المواعيد وتعديلها
-  bool get canSchedule => this != StaffRole.doctor;
+  bool get canSchedule => true;
 
   /// الإلغاء وتأكيد الدفع في الفرع
-  bool get canManage => this != StaffRole.doctor;
+  bool get canManage => true;
 
-  bool get seesReports => this == StaffRole.owner || this == StaffRole.manager;
+  bool get seesReports => this == StaffRole.admin;
 
-  /// كل الفروع (المالك)، وغيره فرعه بس
-  bool get allBranches => this == StaffRole.owner;
+  /// معاينة التطبيق (صفحة مستقلة)
+  bool get seesPreview => this == StaffRole.admin;
+
+  /// فلتر الفروع
+  bool get allBranches => true;
 }
 
 class Staff {
-  const Staff({required this.id, required this.name, required this.role, this.branchId, this.doctorId});
+  const Staff({required this.id, required this.email, required this.name, required this.role});
 
   final String id;
+  final String email;
   final String name;
   final StaffRole role;
-
-  /// فرع الموظف (null = كل الفروع)
-  final String? branchId;
-
-  /// حساب الطبيب: يشوف مواعيده بس
-  final String? doctorId;
-
-  String get scope {
-    if (doctorId != null) return doctorById(doctorId!).role;
-    if (branchId != null) return branchById(branchId!).name;
-    return 'كل الفروع';
-  }
 }
 
-/// حسابات تجريبية (تنضاف وتتعدل من اللوحة بعد ربط السيرفر)
+/// حسابات تجريبية لين يتربط السيرفر (هناك تنحفظ كلمات المرور مشفّرة، مو في التطبيق)
 const demoStaff = [
-  Staff(id: 'u1', name: 'أنس الغامدي', role: StaffRole.owner),
-  Staff(id: 'u2', name: 'سارة العمري', role: StaffRole.manager, branchId: 'rawdah'),
-  Staff(id: 'u3', name: 'ريم الحربي', role: StaffRole.reception, branchId: 'rawdah'),
-  Staff(id: 'u4', name: 'د. فهد الزهراني', role: StaffRole.doctor, doctorId: 'd2'),
+  Staff(id: 'u1', email: 'a@noor.com', name: 'الاستقبال', role: StaffRole.reception),
+  Staff(id: 'u2', email: 'a1@noor.com', name: 'إدارة العيادة', role: StaffRole.admin),
 ];
+
+const _demoPassword = '1234';
+
+/// الدخول بالبريد وكلمة المرور (بيانات تجريبية)
+Staff? findStaff(String email, String password) {
+  final e = email.trim().toLowerCase();
+  if (password != _demoPassword) return null;
+  for (final s in demoStaff) {
+    if (s.email == e) return s;
+  }
+  return null;
+}
 
 // ───────── الطلب في اللوحة
 
@@ -175,10 +176,18 @@ class DeskState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// يرجّع false لو البيانات غلط
+  bool login(String email, String password) {
+    final s = findStaff(email, password);
+    if (s == null) return false;
+    signIn(s);
+    return true;
+  }
+
   void signIn(Staff s) {
     staff = s;
     branchFilter = null;
-    page = s.role == StaffRole.doctor ? DeskPage.appointments : DeskPage.requests;
+    page = DeskPage.requests;
     notifyListeners();
   }
 
@@ -212,17 +221,8 @@ class DeskState extends ChangeNotifier {
   /// كل الطلبات (بدون فلترة الصلاحية)
   List<DeskRequest> get all => [..._app.values, ..._mock];
 
-  /// اللي يشوفه الموظف الحالي حسب صلاحيته
-  List<DeskRequest> get visible {
-    final s = staff;
-    if (s == null) return const [];
-    return all.where((r) {
-      final b = r.booking;
-      if (s.doctorId != null) return b.doctorId == s.doctorId && b.status != RequestStatus.sent;
-      if (s.branchId != null) return b.branchId == s.branchId;
-      return true;
-    }).toList();
-  }
+  /// اللي يشوفه الموظف الحالي (المستخدمين الاثنين يشوفون كل الفروع)
+  List<DeskRequest> get visible => staff == null ? const [] : all;
 
   /// فلتر الفرع للمالك (null = كل الفروع)
   String? branchFilter;
