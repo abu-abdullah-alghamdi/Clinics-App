@@ -63,14 +63,28 @@ class _ScheduleSheetState extends State<ScheduleSheet> {
     return d != null && DeskScope.read(context).busy(d, t, except: r.id);
   }
 
-  void _send() {
+  /// ينرسل للسيرفر (ولو الوقت انحجز من جهاز ثاني يطلع تنبيه ويختار وقت ثاني)
+  bool _sending = false;
+
+  Future<void> _send() async {
     final at = _time;
     final doc = _doctorId;
-    if (at == null || doc == null) return;
+    if (at == null || doc == null || _sending) return;
     HapticFeedback.mediumImpact();
-    DeskScope.read(context).schedule(r, at: at, doctorId: doc);
-    setState(() => _sent = true);
+    setState(() => _sending = true);
+    final ok = await guard(context, () => DeskScope.read(context).schedule(r, at: at, doctorId: doc));
+    if (!mounted) return;
+    setState(() {
+      _sending = false;
+      if (ok) {
+        _sent = true;
+        _sentAt = at;
+      }
+    });
   }
+
+  /// الموعد اللي انرسل (للرسالة بعد الإرسال)
+  DateTime? _sentAt;
 
   @override
   Widget build(BuildContext context) {
@@ -146,7 +160,7 @@ class _ScheduleSheetState extends State<ScheduleSheet> {
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Text(summary, textAlign: TextAlign.center, style: ts(15, weight: FontWeight.w500)),
                   ),
-                PillButton(label: 'إرسال للعميل', icon: Icons.send_rounded, enabled: ready, onTap: _send),
+                PillButton(label: 'إرسال للعميل', icon: Icons.send_rounded, enabled: ready, busy: _sending, onTap: _send),
               ],
             ),
           ),
@@ -274,7 +288,7 @@ class _ScheduleSheetState extends State<ScheduleSheet> {
             const SizedBox(height: 18),
             Text('انرسل الموعد للعميل', textAlign: TextAlign.center, style: ts(22, weight: FontWeight.w600)),
             const SizedBox(height: 6),
-            Text('${r.patient}\n${fmtAppointment(r.booking.at!)}', textAlign: TextAlign.center, style: ts(15, color: AppColors.body)),
+            Text('${r.patient}\n${fmtAppointment(_sentAt!)}', textAlign: TextAlign.center, style: ts(15, color: AppColors.body)),
             const SizedBox(height: 24),
             PillButton(label: 'تم', onTap: () => Navigator.of(context).pop()),
           ],
@@ -380,14 +394,14 @@ class _CancelSheetState extends State<CancelSheet> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
           child: SafeArea(
             top: false,
-            child: PillButton(
+            child: AsyncPillButton(
               label: 'إلغاء الموعد',
               bg: AppColors.red,
               fg: AppColors.onRed,
               enabled: reason != null,
-              onTap: () {
-                DeskScope.read(context).cancel(r, reason!);
-                Navigator.of(context).pop();
+              onTap: () async {
+                await DeskScope.read(context).cancel(r, reason!);
+                if (context.mounted) Navigator.of(context).pop();
               },
             ),
           ),

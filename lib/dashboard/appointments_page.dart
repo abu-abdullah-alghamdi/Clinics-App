@@ -161,7 +161,8 @@ class AppointmentRow extends StatelessWidget {
     final desk = DeskScope.read(context);
     final started = r.booking.at!.isBefore(DateTime.now().add(const Duration(minutes: 30)));
 
-    Widget button(String label, VoidCallback onTap, {Color? bg, Color? fg}) => PillButton(
+    // الإجراء ينتظر السيرفر: الزر يطلع مؤشر، ولو فشل يطلع تنبيه بالسبب
+    Widget button(String label, Future<void> Function() onTap, {Color? bg, Color? fg}) => AsyncPillButton(
           label: label,
           height: 44,
           fontSize: 15,
@@ -170,8 +171,18 @@ class AppointmentRow extends StatelessWidget {
           fg: fg ?? AppColors.ink,
           onTap: () {
             HapticFeedback.selectionClick();
-            onTap();
+            return onTap();
           },
+        );
+
+    Widget sheet(String label, VoidCallback onTap, {Color? fg}) => PillButton(
+          label: label,
+          height: 44,
+          fontSize: 15,
+          padding: 18,
+          bg: AppColors.bg,
+          fg: fg ?? AppColors.ink,
+          onTap: onTap,
         );
 
     return [
@@ -179,8 +190,9 @@ class AppointmentRow extends StatelessWidget {
       if (started) button('حضر', () => desk.complete(r), bg: AppColors.accent, fg: AppColors.onAccent),
       if (started && role.canManage) button('ما حضر', () => desk.noShow(r)),
       if (role.canManage && !r.settled && !r.booking.isPackage) button('تأكيد الدفع', () => desk.confirmPayment(r)),
-      if (role.canSchedule) button('تعديل الموعد', () => openSchedule(context, r)),
-      if (role.canManage) button('إلغاء', () => openCancel(context, r), fg: AppColors.red),
+      // هذي تفتح نافذة (والنافذة نفسها تنتظر السيرفر)
+      if (role.canSchedule) sheet('تعديل الموعد', () => openSchedule(context, r)),
+      if (role.canManage) sheet('إلغاء', () => openCancel(context, r), fg: AppColors.red),
     ];
   }
 }

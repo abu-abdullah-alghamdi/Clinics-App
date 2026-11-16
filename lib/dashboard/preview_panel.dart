@@ -7,9 +7,9 @@ import 'package:flutter/material.dart';
 
 import '../clinic_config.dart';
 import '../main.dart';
+import '../state.dart';
 import '../theme.dart';
 import '../widgets.dart';
-import 'desk.dart';
 
 /// مقاس آيفون (بالنقاط) ومسافات الحواف فيه
 const _phone = Size(393, 852);
@@ -75,13 +75,10 @@ class _NoticeBannerState extends State<_NoticeBanner> {
   Timer? _hide;
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final source = DeskScope.read(context).notice;
-    if (source != _source) {
-      _source?.removeListener(_onNotice);
-      _source = source..addListener(_onNotice);
-    }
+  void initState() {
+    super.initState();
+    // الإشعار يجي من التطبيق نفسه لما يوصله تحديث من العيادة (مثل إشعار الجوال)
+    _source = appState.notice..addListener(_onNotice);
   }
 
   void _onNotice() {

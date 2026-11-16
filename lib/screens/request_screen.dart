@@ -55,6 +55,9 @@ class _RequestScreenState extends State<RequestScreen> {
   Period _period = Period.evening;
 
   bool _forOther = false;
+
+  /// الطلب ينرسل (ينتظر السيرفر)
+  bool _sending = false;
   final _name = TextEditingController();
   final _phone = TextEditingController();
   bool _more = false;
@@ -131,17 +134,24 @@ class _RequestScreenState extends State<RequestScreen> {
       }
     }
     HapticFeedback.mediumImpact();
-    final b = s.addRequest(
-      serviceId: _service.id,
-      branchId: _branch!,
-      doctorId: _doctor,
-      period: _period,
-      packageId: widget.package?.id,
-      userPackageId: widget.userPackage?.id,
-      recipientName: other ? _name.text.trim() : null,
-      recipientPhone: phone,
-    );
-    Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(requests: [b])));
+    setState(() => _sending = true);
+    Booking? b;
+    await guard(context, () async {
+      b = await s.addRequest(
+        serviceId: _service.id,
+        branchId: _branch!,
+        doctorId: _doctor,
+        period: _period,
+        packageId: widget.package?.id,
+        userPackageId: widget.userPackage?.id,
+        recipientName: other ? _name.text.trim() : null,
+        recipientPhone: phone,
+      );
+    });
+    if (!mounted) return;
+    setState(() => _sending = false);
+    final sent = b;
+    if (sent != null) Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(requests: [sent])));
   }
 
   Widget _title(String text) => px(Padding(
@@ -314,6 +324,7 @@ class _RequestScreenState extends State<RequestScreen> {
                 height: 50,
                 fontSize: 17,
                 enabled: _ready,
+                busy: _sending,
                 onTap: _send,
               ),
             ),
@@ -547,20 +558,20 @@ Future<void> requestTouchUp(BuildContext context, Booking session) async {
               ),
             ),
             const SizedBox(height: 16),
-            PillButton(
+            AsyncPillButton(
               label: 'إرسال الطلب',
               height: 50,
               fontSize: 17,
-              onTap: () {
+              onTap: () async {
                 HapticFeedback.mediumImpact();
-                final b = s.addRequest(
+                final b = await s.addRequest(
                   serviceId: session.serviceId,
                   branchId: session.branchId,
                   doctorId: session.doctorId,
                   period: period,
                   touchUpOf: session.id,
                 );
-                Navigator.of(ctx).pop(b);
+                if (ctx.mounted) Navigator.of(ctx).pop(b);
               },
             ),
           ],

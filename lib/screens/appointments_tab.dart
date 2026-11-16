@@ -216,14 +216,14 @@ class RequestCard extends StatelessWidget {
             if (!b.payLater) ...[
               const SizedBox(width: 6),
               Expanded(
-                child: PillButton(
+                child: AsyncPillButton(
                   label: 'ادفع لاحقاً',
                   height: 50,
                   fontSize: 16,
                   bg: AppColors.bg,
                   onTap: () {
                     HapticFeedback.selectionClick();
-                    s.payLater(b.id);
+                    return s.payLater(b.id);
                   },
                 ),
               ),

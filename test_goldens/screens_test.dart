@@ -24,6 +24,7 @@ import 'package:clinics_app/screens/request_screen.dart';
 import 'package:clinics_app/screens/service_screen.dart';
 import 'package:clinics_app/services_data.dart';
 import 'package:clinics_app/state.dart';
+import 'package:clinics_app/repo/mock_backend.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -142,6 +143,7 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     // ignore: invalid_use_of_visible_for_testing_member
+    MockBackend.latency = Duration.zero;
     SharedPreferences.setMockInitialValues({});
     await _loadFonts();
     goldenFileComparator = _TolerantComparator((goldenFileComparator as LocalFileComparator).basedir.resolve('screens_test.dart'));

@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'data.dart';
+import 'repo/requests_repo.dart';
 import 'services_data.dart';
 import 'theme.dart';
 
@@ -120,10 +121,14 @@ class PillButton extends StatelessWidget {
     this.weight = FontWeight.w500,
     this.border,
     this.padding = 24,
+    this.busy = false,
   });
 
   final String label;
   final VoidCallback? onTap;
+
+  /// العملية شغالة (تنتظر السيرفر): مؤشر بدل النص، والزر ما ينضغط
+  final bool busy;
   final Color? bg;
   final Color? fg;
   final IconData? icon;
@@ -140,14 +145,16 @@ class PillButton extends StatelessWidget {
     final b = enabled ? base : AppColors.disabled;
     final f = enabled ? (fg ?? fgOn(base)) : AppColors.disabledText;
     return Pressable(
-      onTap: onTap,
+      onTap: busy ? null : onTap,
       enabled: enabled,
-      semanticLabel: label,
+      semanticLabel: busy ? '$label، جاري' : label,
       child: Container(
         constraints: BoxConstraints(minHeight: height),
         padding: EdgeInsets.symmetric(horizontal: padding, vertical: 10),
         decoration: BoxDecoration(color: b, borderRadius: BorderRadius.circular(999), border: border),
-        child: Row(
+        child: busy
+            ? Center(widthFactor: 1, child: CupertinoActivityIndicator(color: f))
+            : Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -163,6 +170,89 @@ class PillButton extends StatelessWidget {
       ),
     );
   }
+}
+
+/// زر عمليته تنتظر السيرفر: يطلع مؤشر وهو شغال، ولو فشلت يطلع تنبيه بالسبب
+class AsyncPillButton extends StatefulWidget {
+  const AsyncPillButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.bg,
+    this.fg,
+    this.icon,
+    this.height = 50,
+    this.enabled = true,
+    this.fontSize = 17,
+    this.weight = FontWeight.w500,
+    this.padding = 24,
+  });
+
+  final String label;
+  final Future<void> Function() onTap;
+  final Color? bg;
+  final Color? fg;
+  final IconData? icon;
+  final double height;
+  final bool enabled;
+  final double fontSize;
+  final FontWeight weight;
+  final double padding;
+
+  @override
+  State<AsyncPillButton> createState() => _AsyncPillButtonState();
+}
+
+class _AsyncPillButtonState extends State<AsyncPillButton> {
+  bool _busy = false;
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    await guard(context, widget.onTap);
+    if (mounted) setState(() => _busy = false);
+  }
+
+  @override
+  Widget build(BuildContext context) => PillButton(
+        label: widget.label,
+        onTap: _run,
+        bg: widget.bg,
+        fg: widget.fg,
+        icon: widget.icon,
+        height: widget.height,
+        enabled: widget.enabled,
+        fontSize: widget.fontSize,
+        weight: widget.weight,
+        padding: widget.padding,
+        busy: _busy,
+      );
+}
+
+/// ينفذ عملية على السيرفر: لو فشلت يطلع تنبيه بالسبب ويرجع false
+Future<bool> guard(BuildContext context, Future<void> Function() op) async {
+  try {
+    await op();
+    return true;
+  } on RepoError catch (e) {
+    if (context.mounted) await showErrorAlert(context, e.title, e.message);
+    return false;
+  }
+}
+
+/// تنبيه بزر واحد (آبل الأصلي، وعلى الويب نفس الشكل مرسوم)
+Future<void> showErrorAlert(BuildContext context, String title, String message) async {
+  if (kIsWeb) {
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (ctx) => CupertinoAlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [CupertinoDialogAction(isDefaultAction: true, onPressed: () => Navigator.of(ctx).pop(), child: const Text('حسناً'))],
+      ),
+    );
+    return;
+  }
+  await CNAlert.show<String>(context: context, title: title, message: message, actions: const [CNAlertAction(label: 'حسناً', isCancel: true)]);
 }
 
 /// زر دائري

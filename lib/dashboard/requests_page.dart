@@ -122,7 +122,7 @@ class RequestCard extends StatelessWidget {
           if (role?.canSchedule ?? false) ...[
             const SizedBox(height: 14),
             if (b.isPackage)
-              PillButton(label: 'موافقة على الباقة', icon: Icons.check_rounded, onTap: () => DeskScope.read(context).approve(r))
+              AsyncPillButton(label: 'موافقة على الباقة', icon: Icons.check_rounded, onTap: () => DeskScope.read(context).approve(r))
             else
               PillButton(label: 'حدد الموعد', icon: CupertinoIcons.calendar_badge_plus, onTap: () => openSchedule(context, r)),
           ],

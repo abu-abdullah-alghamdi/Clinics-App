@@ -1,16 +1,18 @@
-/// لوحة العيادة: الطلبات والمواعيد والصلاحيات (بيانات تجريبية لين يتربط السيرفر)
+/// لوحة العيادة: الطلبات والمواعيد والصلاحيات
 ///
-/// طلبات المرضى التجريبية في اللوحة نفسها، وطلبات التطبيق (اللي في المعاينة) تجي من [appState]،
-/// فأي طلب ينرسل من المعاينة يطلع هنا، وأي موعد يتحدد هنا يتحدث في المعاينة.
+/// الطلبات تجي من طبقة البيانات (requests_repo.dart)، وهي نفسها اللي يستخدمها التطبيق،
+/// فأي طلب ينرسل من معاينة التطبيق يطلع هنا، وأي موعد يتحدد هنا يتحدث فيه.
 library;
 
-import 'dart:math';
+import 'dart:async';
 
 import 'package:flutter/widgets.dart';
 
 import '../data.dart';
 import '../extras.dart';
 import '../main.dart' show appState;
+import '../repo/mock_backend.dart';
+import '../repo/requests_repo.dart';
 import '../services_data.dart';
 
 // ───────── الصلاحيات
@@ -68,34 +70,36 @@ Staff? findStaff(String email, String password) {
 
 // ───────── الطلب في اللوحة
 
+/// طلب كما تشوفه العيادة (فوق بيانات السيرفر)
 class DeskRequest {
-  DeskRequest(this.booking, {required String patient, required String phone, this.fromApp = false, this.scheduledAt})
-      : _patient = patient,
-        _phone = phone;
+  DeskRequest(this.booking);
 
   final Booking booking;
-  final String _patient;
-  final String _phone;
-
-  /// من التطبيق اللي في المعاينة (يتحدث فيه ويوصله إشعار)
-  final bool fromApp;
-
-  /// متى حددت العيادة الموعد (لسرعة الرد في التقارير)
-  DateTime? scheduledAt;
 
   String get id => booking.id;
 
+  /// من المريض اللي في معاينة التطبيق (مستخدم هذا الجهاز)
+  bool get fromApp => booking.patientId == mePatient;
+
+  /// متى حددت العيادة الموعد (لسرعة الرد في التقارير)
+  DateTime? get scheduledAt => booking.scheduledAt;
+
   /// اسم المريض (أو الشخص اللي انطلب له)
   String get patient {
-    if (booking.recipientName != null) return booking.recipientName!;
-    if (fromApp) return appState.name.isNotEmpty ? appState.name : 'مستخدم التطبيق';
-    return _patient;
+    final b = booking;
+    if (b.recipientName != null) return b.recipientName!;
+    final n = b.patientName?.trim() ?? '';
+    if (n.isNotEmpty) return n;
+    if (fromApp && appState.name.trim().isNotEmpty) return appState.name.trim();
+    return 'مستخدم التطبيق';
   }
 
   String get phone {
-    if (booking.recipientPhone != null) return booking.recipientPhone!;
-    if (fromApp) return appState.phone;
-    return _phone;
+    final b = booking;
+    if (b.recipientPhone != null) return b.recipientPhone!;
+    final p = b.patientPhone ?? '';
+    if (p.isNotEmpty) return p;
+    return fromApp ? appState.phone : '';
   }
 
   /// ينتظر من العيادة: يحدد الموعد (أو يوافق على الباقة)
@@ -104,27 +108,6 @@ class DeskRequest {
   /// مدفوع أو ما عليه مبلغ
   bool get settled => booking.paid || booking.free || booking.price == 0;
 }
-
-/// وقت متاح لموعد: كل نص ساعة داخل الفترة
-List<DateTime> slotsFor(DateTime day, Period p) {
-  final (from, to) = switch (p) {
-    Period.morning => (9, 12),
-    Period.noon => (12, 16),
-    Period.evening => (16, 21),
-  };
-  return [
-    for (var h = from; h < to; h++)
-      for (final m in const [0, 30]) DateTime(day.year, day.month, day.day, h, m),
-  ];
-}
-
-/// أيام الدوام القادمة (بدون الجمعة)
-List<DateTime> openDays({int count = 14}) => [
-      for (var i = 0; i < count + 3; i++)
-        if (!DayInfo(i).closed) DayInfo(i).date,
-    ].take(count).toList();
-
-bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
 
 /// "قبل 12 دقيقة"، "قبل 3 ساعات"، "أمس"
 String ago(DateTime t) {
@@ -139,24 +122,19 @@ String ago(DateTime t) {
   return days == 1 ? 'أمس' : 'قبل ${fmtNum(days)} أيام';
 }
 
-/// إشعار وصل لجوال المريض (يطلع في المعاينة)
-class PatientNotice {
-  PatientNotice(this.title, this.body) : at = DateTime.now();
-  final String title;
-  final String body;
-  final DateTime at;
-}
-
 // ───────── حالة اللوحة
 
 enum DeskPage { requests, appointments, reports, preview }
 
 class DeskState extends ChangeNotifier {
-  DeskState() {
-    _seed();
-    _syncApp(announce: false);
-    appState.addListener(_syncApp);
+  /// الطلبات من طبقة البيانات (تجريبية لين يتركب السيرفر)
+  DeskState({ClinicRequests? requests}) : _requests = requests ?? MockClinicRequests() {
+    _sync(announce: false);
+    _sub = _requests.changes.listen((_) => _sync());
   }
+
+  final ClinicRequests _requests;
+  late final StreamSubscription<void> _sub;
 
   Staff? staff;
 
@@ -196,35 +174,31 @@ class DeskState extends ChangeNotifier {
     notifyListeners();
   }
 
-  final List<DeskRequest> _mock = [];
+  /// غلاف لكل طلب (يبقى نفسه مع التحديثات)
+  final Map<String, DeskRequest> _wrap = {};
 
-  /// طلبات التطبيق (نحفظ الغلاف عشان ما يضيع وقت تحديد الموعد)
-  final Map<String, DeskRequest> _app = {};
-
-  /// آخر طلب وصل من التطبيق (يطلع تنبيه "طلب جديد")
+  /// آخر طلب جديد وصل (يطلع تنبيه "طلب جديد")
   final arrival = ValueNotifier<DeskRequest?>(null);
 
-  /// آخر إشعار انرسل لجوال المريض (يطلع في المعاينة)
-  final notice = ValueNotifier<PatientNotice?>(null);
-
-  /// يضيف طلبات التطبيق الجديدة (والطلبات الأولية فيه ما تنبّه)
-  void _syncApp({bool announce = true}) {
-    for (final b in appState.bookings) {
-      if (_app.containsKey(b.id)) continue;
-      final r = DeskRequest(b, patient: '', phone: '', fromApp: true);
-      _app[b.id] = r;
+  void _sync({bool announce = true}) {
+    final ids = <String>{};
+    for (final b in _requests.current) {
+      ids.add(b.id);
+      if (_wrap.containsKey(b.id)) continue;
+      final r = _wrap[b.id] = DeskRequest(b);
       if (announce && r.waiting) arrival.value = r;
     }
+    _wrap.removeWhere((id, _) => !ids.contains(id));
     notifyListeners();
   }
 
-  /// كل الطلبات (بدون فلترة الصلاحية)
-  List<DeskRequest> get all => [..._app.values, ..._mock];
+  /// كل الطلبات (بدون فلترة)
+  List<DeskRequest> get all => _wrap.values.toList();
 
   /// اللي يشوفه الموظف الحالي (المستخدمين الاثنين يشوفون كل الفروع)
   List<DeskRequest> get visible => staff == null ? const [] : all;
 
-  /// فلتر الفرع للمالك (null = كل الفروع)
+  /// فلتر الفرع (null = كل الفروع)
   String? branchFilter;
 
   void setBranchFilter(String? id) {
@@ -246,7 +220,7 @@ class DeskState extends ChangeNotifier {
       .toList()
     ..sort((a, b) => a.booking.at!.compareTo(b.booking.at!));
 
-  /// الطبيب مشغول في هذا الوقت؟ (موعد ثاني مؤكد بنفس الوقت)
+  /// الطبيب مشغول في هذا الوقت؟ (للعرض بس، والسيرفر يتأكد وقت الحفظ)
   bool busy(String doctorId, DateTime at, {String? except}) => all.any((r) =>
       r.id != except &&
       r.booking.doctorId == doctorId &&
@@ -256,74 +230,22 @@ class DeskState extends ChangeNotifier {
   /// أطباء الخدمة في فرع الطلب
   List<Doctor> doctorsOf(DeskRequest r) => doctorsFor(r.booking.service, r.booking.branchId);
 
-  // ───────── الإجراءات
+  // ───────── الإجراءات (كلها تنتظر السيرفر، ولو فشلت يرجع [RepoError])
 
   /// تحديد الموعد وإرساله للعميل (يتحدث في تطبيقه ويوصله إشعار)
-  void schedule(DeskRequest r, {required DateTime at, required String doctorId}) {
-    final b = r.booking;
-    final first = b.status == RequestStatus.sent;
-    if (r.fromApp) {
-      appState.clinicSchedule(b.id, at: at, doctorId: doctorId);
-    } else {
-      b
-        ..status = RequestStatus.scheduled
-        ..at = at
-        ..doctorId = doctorId;
-    }
-    r.scheduledAt ??= DateTime.now();
-    if (r.fromApp) {
-      notice.value = PatientNotice(
-        first ? 'تم تحديد موعدك' : 'تغيّر موعدك',
-        '${b.title} ${fmtDay(at)} الساعة ${fmtClock(at)} مع ${doctorById(doctorId).name}، ${b.branch.name}',
-      );
-    }
-    notifyListeners();
-  }
+  Future<void> schedule(DeskRequest r, {required DateTime at, required String doctorId}) =>
+      _requests.schedule(r.id, at: at, doctorId: doctorId);
 
   /// موافقة على طلب باقة (بعدها يدفع المريض من التطبيق)
-  void approve(DeskRequest r) {
-    if (r.fromApp) {
-      appState.clinicApprove(r.id);
-      notice.value = PatientNotice('تمت الموافقة على طلبك', '${r.booking.title}: ${r.booking.packageName ?? ''}، تقدر تدفع الحين');
-    } else {
-      r.booking.status = RequestStatus.approved;
-    }
-    r.scheduledAt ??= DateTime.now();
-    notifyListeners();
-  }
+  Future<void> approve(DeskRequest r) => _requests.approve(r.id);
 
-  void complete(DeskRequest r) {
-    r.fromApp ? appState.clinicComplete(r.id) : r.booking.status = RequestStatus.completed;
-    notifyListeners();
-  }
+  Future<void> complete(DeskRequest r) => _requests.complete(r.id);
 
-  void noShow(DeskRequest r) {
-    r.fromApp ? appState.clinicNoShow(r.id) : r.booking.status = RequestStatus.noShow;
-    notifyListeners();
-  }
+  Future<void> noShow(DeskRequest r) => _requests.noShow(r.id);
 
-  void confirmPayment(DeskRequest r) {
-    if (r.fromApp) {
-      appState.clinicConfirmPayment(r.id);
-    } else {
-      r.booking
-        ..orderNumber ??= 'branch'
-        ..payLater = false;
-    }
-    notifyListeners();
-  }
+  Future<void> confirmPayment(DeskRequest r) => _requests.confirmPayment(r.id);
 
-  void cancel(DeskRequest r, String reason) {
-    if (r.fromApp) {
-      appState.cancelByClinic(r.id, reason);
-      notice.value = PatientNotice('تم إلغاء طلبك', '${r.booking.title}: $reason');
-    } else {
-      r.booking
-        ..clinicCancelReason = reason
-        ..status = RequestStatus.cancelled;
-    }
-    notifyListeners();
-  }
+  Future<void> cancel(DeskRequest r, String reason) => _requests.cancel(r.id, reason);
 
   // ───────── التقارير
 
@@ -333,127 +255,10 @@ class DeskState extends ChangeNotifier {
     return scoped.where((r) => !r.booking.createdAt.isBefore(from)).toList();
   }
 
-  // ───────── بيانات تجريبية: مرضى بطلبات ومواعيد على آخر شهر والأيام الجاية
-
-  void _seed() {
-    final rnd = Random(11);
-    const names = [
-      'نوف الشهري', 'عبدالله القرني', 'هيا المطيري', 'خالد الدوسري', 'لمى الزهراني', 'فيصل العنزي',
-      'جود الحارثي', 'تركي السبيعي', 'شهد البقمي', 'ماجد الشمري', 'رهف الغامدي', 'سعود العتيبي',
-      'دانة القحطاني', 'بندر الحربي', 'غلا الجهني', 'عمر باوزير', 'ريناد الأحمدي', 'نواف المالكي',
-      'أسيل بخاري', 'يزيد الثبيتي', 'لين الصاعدي', 'مشاري العمري', 'سديم الرشيدي', 'حمد الشهراني',
-    ];
-    var seq = 100;
-    var n = 0;
-
-    String phone() => '+9665${(10000000 + rnd.nextInt(89999999))}';
-
-    DeskRequest make({
-      required int dayOffset,
-      required RequestStatus status,
-      DateTime? at,
-      int? responseMinutes,
-      bool paid = false,
-      bool payLater = false,
-      int hour = -1,
-    }) {
-      final sv = services[rnd.nextInt(services.length)];
-      final branchesOk = branchesFor(sv);
-      final br = branchesOk[rnd.nextInt(branchesOk.length)];
-      final docs = doctorsFor(sv, br.id);
-      final doc = rnd.nextInt(3) == 0 ? null : docs[rnd.nextInt(docs.length)];
-      final period = Period.values[rnd.nextInt(3)];
-      final created = DateTime(appToday.year, appToday.month, appToday.day + dayOffset, hour >= 0 ? hour : 9 + rnd.nextInt(12), rnd.nextInt(60));
-      final b = Booking(
-        id: 'm${n++}',
-        number: requestNumber(++seq, created),
-        serviceId: sv.id,
-        branchId: br.id,
-        doctorId: status == RequestStatus.sent ? doc?.id : (doc ?? docs.first).id,
-        period: period,
-        status: status,
-        at: at,
-        createdAt: created,
-      );
-      if (paid) b.orderNumber = 'O-$seq';
-      b.payLater = payLater;
-      return DeskRequest(
-        b,
-        patient: names[n % names.length],
-        phone: phone(),
-        scheduledAt: responseMinutes == null ? null : created.add(Duration(minutes: responseMinutes)),
-      );
-    }
-
-    DateTime slot(int dayOffset, Period p) {
-      var o = dayOffset;
-      while (DayInfo(o).closed) {
-        o += dayOffset < 0 ? -1 : 1;
-      }
-      final s = slotsFor(DayInfo(o).date, p);
-      return s[rnd.nextInt(s.length)];
-    }
-
-    // السابقة: مكتملة وغياب وملغية خلال آخر 30 يوم
-    for (var d = -30; d < 0; d++) {
-      final count = 1 + rnd.nextInt(3);
-      for (var i = 0; i < count; i++) {
-        final roll = rnd.nextInt(10);
-        final status = roll < 7 ? RequestStatus.completed : (roll < 9 ? RequestStatus.noShow : RequestStatus.cancelled);
-        final r = make(
-          dayOffset: d - 1 - rnd.nextInt(2),
-          status: status,
-          at: slot(d, Period.values[rnd.nextInt(3)]),
-          responseMinutes: 4 + rnd.nextInt(170),
-          paid: status == RequestStatus.completed && rnd.nextBool(),
-        );
-        if (status == RequestStatus.completed && !r.booking.paid) r.booking.orderNumber = 'branch';
-        if (status == RequestStatus.cancelled) r.booking.clinicCancelReason = 'طلب المريض الإلغاء';
-        _mock.add(r);
-      }
-    }
-
-    // القادمة: مواعيد محددة اليوم والأيام الجاية
-    for (var d = 0; d < 6; d++) {
-      final count = d == 0 ? 5 : 2 + rnd.nextInt(3);
-      for (var i = 0; i < count; i++) {
-        _mock.add(make(
-          dayOffset: d - 1 - rnd.nextInt(2),
-          status: RequestStatus.scheduled,
-          at: slot(d, Period.values[rnd.nextInt(3)]),
-          responseMinutes: 5 + rnd.nextInt(90),
-          paid: rnd.nextInt(3) == 0,
-          payLater: rnd.nextBool(),
-        ));
-      }
-    }
-
-    // الجديدة: تنتظر تحديد موعد (من اليوم وأمس)
-    final now = DateTime.now();
-    for (var i = 0; i < 7; i++) {
-      final r = make(dayOffset: 0, status: RequestStatus.sent, hour: 0);
-      final created = now.subtract(Duration(minutes: 3 + i * i * 9 + rnd.nextInt(6)));
-      _mock.add(DeskRequest(
-        Booking(
-          id: r.booking.id,
-          number: r.booking.number,
-          serviceId: r.booking.serviceId,
-          branchId: r.booking.branchId,
-          doctorId: r.booking.doctorId,
-          period: r.booking.period,
-          createdAt: created,
-        ),
-        patient: r.patient,
-        phone: r.phone,
-      ));
-    }
-  }
-
   @override
   void dispose() {
-    appState.removeListener(_syncApp);
+    _sub.cancel();
     arrival.dispose();
-    notice.dispose();
     super.dispose();
   }
 }

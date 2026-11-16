@@ -129,15 +129,25 @@ class _PaymentScreenState extends State<PaymentScreen> {
     await Future<void>.delayed(pause);
     if (!mounted) return;
 
-    final order = s.payRequest(
-      _request,
-      method: _method,
-      reference: result.reference ?? '',
-      cardLast4: _last4,
-      discount: _discount,
-      coupon: _coupon,
-    );
-    Navigator.of(context).pushAndRemoveUntil(iosRoute(OrderDoneScreen(order: order, request: _request)), (r) => r.isFirst);
+    // تسجيل الدفع على الطلب (بعد الربط يتأكد منه السيرفر مع بوابة الدفع)
+    Order? order;
+    await guard(context, () async {
+      order = await s.payRequest(
+        _request,
+        method: _method,
+        reference: result.reference ?? '',
+        cardLast4: _last4,
+        discount: _discount,
+        coupon: _coupon,
+      );
+    });
+    if (!mounted) return;
+    final done = order;
+    if (done == null) {
+      setState(() => _phase = null);
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(iosRoute(OrderDoneScreen(order: done, request: _request)), (r) => r.isFirst);
   }
 
   Widget _label(String text) => Padding(

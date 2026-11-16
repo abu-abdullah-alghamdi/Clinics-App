@@ -740,7 +740,7 @@ Future<void> confirmCancelBooking(BuildContext context, Booking b) async {
   }
   if (ok && context.mounted) {
     HapticFeedback.mediumImpact();
-    s.cancelRequest(b.id);
+    await guard(context, () => s.cancelRequest(b.id));
   }
 }
 

@@ -81,10 +81,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       cancel: 'إلغاء',
       destructive: 'حذف',
     );
-    if (delete && mounted) {
-      s.deleteAccount();
-      Navigator.of(context).popUntil((r) => r.isFirst);
-    }
+    if (!delete || !mounted) return;
+    if (await guard(context, s.deleteAccount) && mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   Widget _label(String text) => Padding(

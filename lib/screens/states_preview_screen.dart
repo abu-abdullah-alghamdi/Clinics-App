@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../data.dart';
 import '../main.dart';
 import '../native.dart';
+import '../repo/mock_backend.dart';
 import '../state.dart';
 import '../states.dart';
 import '../theme.dart';
@@ -45,6 +46,8 @@ class StatesPreviewScreen extends StatelessWidget {
         child: FloatingBar(title: 'معاينة الحالات', body: ListView(
           padding: EdgeInsets.fromLTRB(14, FloatingBar.safeTop(context) + FloatingBar.belowBar, 14, 30),
           children: [
+            // السيرفر التجريبي: كل عملية (إرسال، إلغاء، دفع، تحديد موعد) تفشل وتطلع رسالتها
+            const _Group(title: 'السيرفر التجريبي', rows: [_OfflineSwitch()]),
             _Group(title: 'صفحات كاملة', rows: [
               _Row('تحميل البيانات', onTap: () => open(const _LoadingDemo())),
               _Row('انقطاع الإنترنت', onTap: () => open(Builder(
@@ -95,7 +98,7 @@ class _Group extends StatelessWidget {
   const _Group({required this.title, required this.rows});
 
   final String title;
-  final List<_Row> rows;
+  final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -148,6 +151,40 @@ class _Row extends StatelessWidget {
               ),
               if (onTap != null) const Icon(CupertinoIcons.forward, size: 18, color: AppColors.faint),
             ],
+          ),
+        ),
+      );
+}
+
+/// يقطع الاتصال بالسيرفر التجريبي عشان تجرب رسائل الفشل في الإرسال والإلغاء والدفع
+class _OfflineSwitch extends StatelessWidget {
+  const _OfflineSwitch();
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+        valueListenable: MockBackend.offline,
+        builder: (context, off, _) => MergeSemantics(
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 58),
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('قطع الاتصال', style: ts(17)),
+                      Text('أي إرسال أو إلغاء أو دفع يفشل', style: ts(13, color: AppColors.faint)),
+                    ],
+                  ),
+                ),
+                CupertinoSwitch(
+                  value: off,
+                  activeTrackColor: AppColors.accent,
+                  onChanged: (v) => MockBackend.offline.value = v,
+                ),
+              ],
+            ),
           ),
         ),
       );

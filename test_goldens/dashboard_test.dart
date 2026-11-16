@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:clinics_app/dashboard/dashboard_app.dart';
 import 'package:clinics_app/dashboard/desk.dart';
+import 'package:clinics_app/repo/mock_backend.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -94,6 +95,7 @@ void main() {
 
   setUpAll(() async {
     // ignore: invalid_use_of_visible_for_testing_member
+    MockBackend.latency = Duration.zero;
     SharedPreferences.setMockInitialValues({});
     await _loadFonts();
     goldenFileComparator = _TolerantComparator((goldenFileComparator as LocalFileComparator).basedir.resolve('dashboard_test.dart'));

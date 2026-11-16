@@ -253,7 +253,21 @@ class Booking {
     this.status = RequestStatus.sent,
     this.at,
     DateTime? createdAt,
+    this.patientId = 'me',
+    this.patientName,
+    this.patientPhone,
+    this.scheduledAt,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  /// صاحب الطلب ('me' = مستخدم هذا الجهاز، لين يتربط السيرفر بحساب المريض)
+  final String patientId;
+
+  /// اسم المريض وجواله وقت الطلب (تشوفها العيادة)
+  final String? patientName;
+  final String? patientPhone;
+
+  /// متى حددت العيادة الموعد أول مرة (لسرعة الرد)
+  DateTime? scheduledAt;
 
   final String id;
 
@@ -311,3 +325,26 @@ class Booking {
   bool get past => !active;
   Doctor? get doctor => doctorId == null ? null : doctorById(doctorId!);
 }
+
+// ───────── أوقات المواعيد (العيادة تحدد منها)
+
+/// وقت متاح لموعد: كل نص ساعة داخل الفترة
+List<DateTime> slotsFor(DateTime day, Period p) {
+  final (from, to) = switch (p) {
+    Period.morning => (9, 12),
+    Period.noon => (12, 16),
+    Period.evening => (16, 21),
+  };
+  return [
+    for (var h = from; h < to; h++)
+      for (final m in const [0, 30]) DateTime(day.year, day.month, day.day, h, m),
+  ];
+}
+
+/// أيام الدوام القادمة (بدون الجمعة)
+List<DateTime> openDays({int count = 14}) => [
+      for (var i = 0; i < count + 3; i++)
+        if (!DayInfo(i).closed) DayInfo(i).date,
+    ].take(count).toList();
+
+bool sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;

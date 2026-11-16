@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'data.dart';
 import 'extras.dart';
 import 'native.dart';
 import 'payments.dart';
+import 'repo/mock_backend.dart';
+import 'repo/requests_repo.dart';
 import 'services_data.dart';
 
 /// المعلومات الشخصية للمستخدم
@@ -99,23 +103,76 @@ class Order {
   String get methodText => cardLast4 == null ? method.label : '${method.label} ···· $cardLast4';
 }
 
+/// إشعار وصل للمريض من العيادة (بعد الربط يجي من السيرفر)
+class PatientNotice {
+  PatientNotice(this.title, this.body, this.bookingId) : at = DateTime.now();
+  final String title;
+  final String body;
+  final String bookingId;
+  final DateTime at;
+}
+
 /// حالة التطبيق العامة
 class AppState extends ChangeNotifier {
-  /// يبدأ بطلبات تجريبية (بعيد عن يوم الجمعة): موعد حددته العيادة، طلب مرسل، وزيارتين مكتملة
-  AppState() {
-    DateTime day(int offset, int hour, [int minute = 0]) {
-      var o = offset;
-      if (DayInfo(o).closed) o += offset < 0 ? -1 : 1;
-      final d = DayInfo(o).date;
-      return DateTime(d.year, d.month, d.day, hour, minute);
-    }
+  /// الطلبات تجي من طبقة البيانات (تجريبية لين يتركب السيرفر)
+  AppState({PatientRequests? requests}) : _requests = requests ?? MockPatientRequests() {
+    _sync(announce: false);
+    _sub = _requests.changes.listen((_) => _sync());
+  }
 
-    bookings.addAll([
-      Booking(id: 'seed1', number: requestNumber(1), serviceId: 's5', branchId: 'rawdah', doctorId: 'd2', status: RequestStatus.scheduled, at: day(3, 17, 30)),
-      Booking(id: 'seed2', number: requestNumber(2), serviceId: 's1', branchId: 'salamah', period: Period.morning),
-      Booking(id: 'seed3', number: requestNumber(3), serviceId: 's7', branchId: 'salamah', doctorId: 'd3', userPackageId: 'seedp', status: RequestStatus.completed, at: day(-3, 18)),
-      Booking(id: 'seed4', number: requestNumber(4), serviceId: 'c3', branchId: 'hamdaniyah', doctorId: 'd4', status: RequestStatus.completed, at: day(-9, 17)),
-    ]);
+  final PatientRequests _requests;
+  late final StreamSubscription<void> _sub;
+
+  @override
+  void dispose() {
+    _sub.cancel();
+    notice.dispose();
+    super.dispose();
+  }
+
+  /// آخر حالة شفناها لكل طلب (عشان نعرف وش تغيّر من العيادة)
+  final Map<String, (RequestStatus, DateTime?)> _seen = {};
+
+  /// آخر إشعار من العيادة (معاينة لوحة العيادة تعرضه مثل إشعار الجوال)
+  final notice = ValueNotifier<PatientNotice?>(null);
+
+  /// يحدّث الطلبات ويسوي اللي يلزم لما العيادة تغيّر شيء: التذكير، الإشعار، ورصيد الباقة
+  void _sync({bool announce = true}) {
+    final now = <String>{};
+    for (final b in _requests.current) {
+      now.add(b.id);
+      final prev = _seen[b.id];
+      _seen[b.id] = (b.status, b.at);
+      if (prev == null || (prev.$1 == b.status && prev.$2 == b.at)) continue;
+      switch (b.status) {
+        case RequestStatus.scheduled:
+          Reminders.schedule(b);
+          if (announce) {
+            final title = prev.$1 == RequestStatus.scheduled ? 'تغيّر موعدك' : 'تم تحديد موعدك';
+            _notify(b, title, '${b.title}\n${fmtDay(b.at!)}، ${fmtClock(b.at!)}');
+          }
+        case RequestStatus.approved:
+          if (announce) _notify(b, 'تمت الموافقة على طلبك', '${b.title}، تقدر تدفع الحين');
+        case RequestStatus.cancelled:
+          Reminders.cancel(b.id);
+          // جلسة الباقة ترجع لرصيدها
+          final up = packageOf(b.userPackageId);
+          if (up != null && up.used > 0) up.used--;
+          if (announce && b.cancelledByClinic) _notify(b, 'تم إلغاء طلبك', '${b.title}: ${b.clinicCancelReason}');
+        case RequestStatus.completed || RequestStatus.noShow:
+          Reminders.cancel(b.id);
+        case RequestStatus.sent:
+          break;
+      }
+    }
+    _seen.removeWhere((id, _) => !now.contains(id));
+    notifyListeners();
+  }
+
+  void _notify(Booking b, String title, String body) {
+    notice.value = PatientNotice(title, body, b.id);
+    // على الجوال: إشعار حقيقي بعد ثواني (بعد الربط يرسله السيرفر)
+    Reminders.notifyLater('notice:${b.id}:${b.status.name}', title, body, const Duration(seconds: 5));
   }
 
   /// يزيد مع كل تغيير (نستخدمه عشان التبويب الظاهر بس يعيد رسم نفسه)
@@ -163,7 +220,8 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  final List<Booking> bookings = [];
+  /// طلبات المستخدم (آخر نسخة من طبقة البيانات)
+  List<Booking> get bookings => _requests.current;
 
   // ───────── الخدمات الإضافية
 
@@ -338,14 +396,14 @@ class AppState extends ChangeNotifier {
     _signOut();
   }
 
-  /// حذف الحساب: يمسح بيانات المستخدم ومواعيده من التطبيق
-  void deleteAccount() {
+  /// حذف الحساب: يمسح بيانات المستخدم ومواعيده
+  Future<void> deleteAccount() async {
+    await _requests.deleteAll();
     Reminders.cancelAll();
     _accounts.remove(phone);
     _savedOrders.remove(phone);
     favDoctors.clear();
     favServices.clear();
-    bookings.clear();
     ratings.clear();
     packages.clear();
     recentSearches.clear();
@@ -368,10 +426,6 @@ class AppState extends ChangeNotifier {
     remindOnWhatsapp = !remindOnWhatsapp;
     notifyListeners();
   }
-
-  /// آخر رقم متسلسل للطلبات (الطلبات التجريبية 1 إلى 4) ولمراجع الإرسال
-  int _seq = 4;
-  int _groupSeq = 0;
 
   // ───────── السلة: خدمات (أو باقات) تنرسل مع بعض، وكل وحدة تصير طلب مستقل
 
@@ -406,31 +460,31 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// يرسل كل اللي في السلة: كل خدمة طلب مستقل برقمه، وكلهم بمرجع إرسال واحد
-  List<Booking> sendCart({required String branchId, required Period period, String? recipientName, String? recipientPhone}) {
-    final group = cart.length > 1 ? groupNumber(++_groupSeq) : null;
-    final sent = [
-      for (final e in cart)
-        addRequest(
-          serviceId: e.serviceId,
-          branchId: branchId,
-          doctorId: e.doctorId,
-          period: period,
-          packageId: e.packageId,
-          recipientName: recipientName,
-          recipientPhone: recipientPhone,
-          groupRef: group,
-        ),
-    ];
+  /// يرسل كل اللي في السلة: كل خدمة طلب مستقل برقمه، وكلهم بمرجع إرسال واحد (كلها أو ولا شيء)
+  Future<List<Booking>> sendCart({required String branchId, required Period period, String? recipientName, String? recipientPhone}) async {
+    final sent = await _requests.createMany(
+      [
+        for (final e in cart)
+          NewRequest(
+            serviceId: e.serviceId,
+            branchId: branchId,
+            doctorId: e.doctorId,
+            period: period,
+            packageId: e.packageId,
+            recipientName: recipientName,
+            recipientPhone: recipientPhone,
+          ),
+      ],
+      patientName: name,
+      patientPhone: phone,
+    );
     cart.clear();
     notifyListeners();
     return sent;
   }
 
-  Booking _find(String id) => bookings.firstWhere((x) => x.id == id);
-
   /// إرسال طلب للعيادة
-  Booking addRequest({
+  Future<Booking> addRequest({
     required String serviceId,
     required String branchId,
     String? doctorId,
@@ -440,63 +494,48 @@ class AppState extends ChangeNotifier {
     String? touchUpOf,
     String? recipientName,
     String? recipientPhone,
-    String? groupRef,
-  }) {
-    _seq++;
-    final b = Booking(
-      id: 'r${DateTime.now().microsecondsSinceEpoch}$_seq',
-      number: requestNumber(_seq),
-      groupRef: groupRef,
-      serviceId: serviceId,
-      branchId: branchId,
-      doctorId: doctorId,
-      period: period,
-      kind: packageId != null ? RequestKind.package : RequestKind.visit,
-      packageId: packageId,
-      userPackageId: userPackageId,
-      touchUpOf: touchUpOf,
-      recipientName: recipientName,
-      recipientPhone: recipientPhone,
+  }) async {
+    final b = await _requests.create(
+      NewRequest(
+        serviceId: serviceId,
+        branchId: branchId,
+        doctorId: doctorId,
+        period: period,
+        packageId: packageId,
+        userPackageId: userPackageId,
+        touchUpOf: touchUpOf,
+        recipientName: recipientName,
+        recipientPhone: recipientPhone,
+      ),
+      patientName: name,
+      patientPhone: phone,
     );
     // جلسة الباقة تنحجز من رصيدها، وترجع لو انلغى الطلب
     final up = packageOf(userPackageId);
     if (up != null && !up.done) up.used++;
-    bookings.add(b);
     notifyListeners();
     return b;
   }
 
-  /// يلغي الطلب أو الموعد (المريض)
-  void cancelRequest(String id) {
-    final b = _find(id);
-    _cancel(b);
-    notifyListeners();
-  }
-
-  void _cancel(Booking b) {
-    b.status = RequestStatus.cancelled;
-    final up = packageOf(b.userPackageId);
-    if (up != null && up.used > 0) up.used--;
-    Reminders.cancel(b.id);
-  }
+  /// يلغي الطلب أو الموعد (المريض). التذكير ورصيد الباقة يتعدلون مع التحديث
+  Future<void> cancelRequest(String id) => _requests.cancel(id);
 
   /// يدفع في الفرع بدل التطبيق (والباقة تتفعل على طول)
-  void payLater(String id) {
-    final b = _find(id);
-    b.payLater = true;
-    if (b.isPackage) _activatePackage(b);
-    notifyListeners();
+  Future<void> payLater(String id) async {
+    await _requests.payLater(id);
+    final b = bookings.firstWhere((x) => x.id == id);
+    if (b.isPackage) await _activatePackage(b);
   }
 
   /// الدفع من التطبيق: عملية دفع مربوطة بالطلب (والباقة تتفعل)
-  Order payRequest(
+  Future<Order> payRequest(
     Booking b, {
     required PayMethod method,
     required String reference,
     String? cardLast4,
     int discount = 0,
     String? coupon,
-  }) {
+  }) async {
     final o = Order(
       number: '${10240 + orders.length + 1}',
       items: [OrderItem(b.service, package: b.package, price: b.price)],
@@ -511,75 +550,26 @@ class AppState extends ChangeNotifier {
       recipientName: b.recipientName,
       recipientPhone: b.recipientPhone,
     );
+    final approvedPackage = b.isPackage && b.status == RequestStatus.approved;
+    await _requests.markPaid(b.id, o.number);
     orders.insert(0, o);
-    b
-      ..orderNumber = o.number
-      ..payLater = false;
-    if (b.isPackage && b.status == RequestStatus.approved) _activatePackage(b);
+    if (approvedPackage) await _activatePackage(b);
     notifyListeners();
     return o;
   }
 
   /// الباقة تصير في "باقاتي" ويطلع طلب أول جلسة منها
-  void _activatePackage(Booking b) {
+  Future<void> _activatePackage(Booking b) async {
     final pkg = b.package;
     if (pkg == null) return;
-    b.status = RequestStatus.completed;
+    await _requests.confirmPackage(b.id);
     final up = UserPackage(
       id: 'up${DateTime.now().microsecondsSinceEpoch}',
       package: pkg,
       expires: DateTime(appToday.year, appToday.month + 6, appToday.day),
     );
     packages.insert(0, up);
-    addRequest(serviceId: b.serviceId, branchId: b.branchId, doctorId: b.doctorId, period: b.period, userPackageId: up.id);
-  }
-
-  // ───────── لوحة العيادة (تجريبية لين تتربط لوحة التحكم)
-
-  /// العيادة حددت الموعد (والطبيب لو كان "الطبيب المتاح")
-  void clinicSchedule(String id, {required DateTime at, required String doctorId}) {
-    final b = _find(id);
-    b
-      ..status = RequestStatus.scheduled
-      ..at = at
-      ..doctorId = doctorId;
-    notifyListeners();
-    // تذكير من الجوال قبل الموعد بساعة
-    Reminders.schedule(b);
-  }
-
-  /// العيادة وافقت على طلب الباقة (بعدها يدفع)
-  void clinicApprove(String id) {
-    _find(id).status = RequestStatus.approved;
-    notifyListeners();
-  }
-
-  /// العيادة أكدت إن المبلغ اندفع في الفرع
-  void clinicConfirmPayment(String id) {
-    final b = _find(id);
-    b.orderNumber ??= 'branch';
-    b.payLater = false;
-    notifyListeners();
-  }
-
-  void clinicComplete(String id) {
-    _find(id).status = RequestStatus.completed;
-    Reminders.cancel(id);
-    notifyListeners();
-  }
-
-  void clinicNoShow(String id) {
-    _find(id).status = RequestStatus.noShow;
-    Reminders.cancel(id);
-    notifyListeners();
-  }
-
-  /// العيادة ألغت الطلب أو الموعد
-  void cancelByClinic(String id, String reason) {
-    final b = _find(id);
-    b.clinicCancelReason = reason;
-    _cancel(b);
-    notifyListeners();
+    await addRequest(serviceId: b.serviceId, branchId: b.branchId, doctorId: b.doctorId, period: b.period, userPackageId: up.id);
   }
 }
 

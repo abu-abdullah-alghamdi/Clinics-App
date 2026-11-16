@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../data.dart';
 import '../extras.dart';
 import '../native.dart';
+import '../repo/mock_backend.dart';
 import '../services_data.dart';
 import '../state.dart';
 import '../states.dart';
@@ -118,9 +119,10 @@ class _RequestRow extends StatelessWidget {
   }
 
   List<Widget> _actions(BuildContext context, Booking b) {
-    final s = AppScope.read(context);
+    // جهة العيادة في السيرفر التجريبي (نفس اللي تستخدمه لوحة العيادة)
+    final clinic = MockClinicRequests();
 
-    Widget action(String label, VoidCallback run, {bool danger = false}) => Padding(
+    Widget action(String label, Future<void> Function() run, {bool danger = false}) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: PillButton(
             label: label,
@@ -131,23 +133,22 @@ class _RequestRow extends StatelessWidget {
             onTap: () {
               Navigator.of(context).pop();
               HapticFeedback.mediumImpact();
-              run();
+              guard(context, run);
             },
           ),
         );
 
-    void schedule(DateTime at) {
+    Future<void> schedule(DateTime at) {
       final docs = doctorsFor(b.service, b.branchId);
       final doctorId = b.doctorId ?? (docs.isNotEmpty ? docs.first.id : doctors.first.id);
-      s.clinicSchedule(b.id, at: at, doctorId: doctorId);
-      // تجربة: تنبيه "تم تحديد موعدك" (بعد الربط يرسله السيرفر)
-      Reminders.notifyLater('scheduled:${b.id}', 'تم تحديد موعدك', lines([b.title, fmtWhen(at)]), const Duration(seconds: 5));
+      // الإشعار "تم تحديد موعدك" يطلع من التطبيق لما يوصله التحديث (بعد الربط يرسله السيرفر)
+      return clinic.schedule(b.id, at: at, doctorId: doctorId);
     }
 
-    final cancel = action('إلغاء من العيادة', () => s.cancelByClinic(b.id, 'اعتذر الطبيب لظرف طارئ ونعتذر لك'), danger: true);
+    final cancel = action('إلغاء من العيادة', () => clinic.cancel(b.id, 'اعتذر الطبيب لظرف طارئ ونعتذر لك'), danger: true);
 
     return switch (b.status) {
-      RequestStatus.sent when b.isPackage => [action('موافقة على الباقة', () => s.clinicApprove(b.id)), cancel],
+      RequestStatus.sent when b.isPackage => [action('موافقة على الباقة', () => clinic.approve(b.id)), cancel],
       RequestStatus.sent => [
           action('تحديد موعد ${fmtDay(_slot(b.period))} ${fmtClock(_slot(b.period))}', () => schedule(_slot(b.period))),
           action('تحديد موعد بعد ساعة', () => schedule(_soon())),
@@ -155,9 +156,9 @@ class _RequestRow extends StatelessWidget {
         ],
       RequestStatus.approved => [cancel],
       RequestStatus.scheduled => [
-          if (!b.free && !b.paid) action('تأكيد الدفع في الفرع', () => s.clinicConfirmPayment(b.id)),
-          action('مكتملة', () => s.clinicComplete(b.id)),
-          action('لم يحضر', () => s.clinicNoShow(b.id)),
+          if (!b.free && !b.paid) action('تأكيد الدفع في الفرع', () => clinic.confirmPayment(b.id)),
+          action('مكتملة', () => clinic.complete(b.id)),
+          action('لم يحضر', () => clinic.noShow(b.id)),
           cancel,
         ],
       _ => const <Widget>[],

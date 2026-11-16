@@ -26,6 +26,9 @@ class _CartScreenState extends State<CartScreen> {
   String? _branch;
   Period _period = Period.evening;
   bool _forOther = false;
+
+  /// الطلبات تنرسل (تنتظر السيرفر)
+  bool _sending = false;
   final _name = TextEditingController();
   final _phone = TextEditingController();
 
@@ -119,13 +122,21 @@ class _CartScreenState extends State<CartScreen> {
     if (!mounted) return;
     final other = _forOther && canForOther;
     HapticFeedback.mediumImpact();
-    final sent = AppScope.read(context).sendCart(
-      branchId: branchId,
-      period: _period,
-      recipientName: other ? _name.text.trim() : null,
-      recipientPhone: other ? '0${nationalNumber(_phone.text)}' : null,
-    );
-    Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(requests: sent)));
+    final s = AppScope.read(context);
+    setState(() => _sending = true);
+    List<Booking>? sent;
+    await guard(context, () async {
+      sent = await s.sendCart(
+        branchId: branchId,
+        period: _period,
+        recipientName: other ? _name.text.trim() : null,
+        recipientPhone: other ? '0${nationalNumber(_phone.text)}' : null,
+      );
+    });
+    if (!mounted) return;
+    setState(() => _sending = false);
+    final done = sent;
+    if (done != null) Navigator.of(context).pushReplacement(iosRoute(RequestSentScreen(requests: done)));
   }
 
   @override
@@ -235,6 +246,7 @@ class _CartScreenState extends State<CartScreen> {
                   height: 50,
                   fontSize: 17,
                   enabled: ready,
+                  busy: _sending,
                   onTap: () => _send(cart, branch!, canForOther),
                 ),
               ),

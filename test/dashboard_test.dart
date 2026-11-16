@@ -7,6 +7,8 @@ import 'package:clinics_app/dashboard/desk.dart';
 import 'package:clinics_app/dashboard/schedule_sheet.dart';
 import 'package:clinics_app/data.dart';
 import 'package:clinics_app/main.dart';
+import 'package:clinics_app/repo/mock_backend.dart';
+import 'package:clinics_app/repo/requests_repo.dart';
 import 'package:clinics_app/services_data.dart';
 import 'package:clinics_app/widgets.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +56,8 @@ Future<void> _close(WidgetTester tester) async {
 
 void main() {
   setUpAll(() async {
+    // السيرفر التجريبي بدون تأخير في الاختبارات
+    MockBackend.latency = Duration.zero;
     // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({});
     await _loadFonts();
@@ -97,13 +101,13 @@ void main() {
       }
     });
 
-    test('تحديد موعد: يصير مؤكد، والطبيب يصير مشغول بنفس الوقت', () {
+    test('تحديد موعد: يصير مؤكد، والطبيب يصير مشغول بنفس الوقت', () async {
       final desk = DeskState()..signIn(_role(StaffRole.admin));
       final r = desk.waiting.first;
       final day = openDays()[1];
-      final at = slotsFor(day, Period.evening).first;
       final doc = desk.doctorsOf(r).first.id;
-      desk.schedule(r, at: at, doctorId: doc);
+      final at = slotsFor(day, Period.evening).firstWhere((t) => !desk.busy(doc, t));
+      await desk.schedule(r, at: at, doctorId: doc);
       expect(r.booking.status, RequestStatus.scheduled);
       expect(r.booking.at, at);
       expect(r.scheduledAt, isNotNull);
@@ -113,27 +117,31 @@ void main() {
       expect(desk.appointmentsOn(day).contains(r), isTrue);
     });
 
-    test('طلب من التطبيق: يطلع في اللوحة، وتحديد موعده يحدّث التطبيق ويرسل إشعار', () {
+    test('طلب من التطبيق: يطلع في اللوحة، وتحديد موعده يحدّث التطبيق ويرسل إشعار', () async {
       final desk = DeskState()..signIn(_role(StaffRole.admin));
-      final booking = appState.addRequest(serviceId: 's1', branchId: 'rawdah', period: Period.morning);
+      final booking = await appState.addRequest(serviceId: 's1', branchId: 'rawdah', period: Period.morning);
       final r = desk.waiting.firstWhere((x) => x.id == booking.id);
       expect(r.fromApp, isTrue);
       expect(desk.arrival.value?.id, booking.id);
+      expect(appState.bookings.any((b) => b.id == booking.id), isTrue);
 
-      final at = slotsFor(openDays()[1], Period.morning)[2];
-      desk.schedule(r, at: at, doctorId: desk.doctorsOf(r).first.id);
+      final doc = desk.doctorsOf(r).first.id;
+      final at = slotsFor(openDays()[1], Period.morning).firstWhere((t) => !desk.busy(doc, t));
+      await desk.schedule(r, at: at, doctorId: doc);
       expect(booking.status, RequestStatus.scheduled);
       expect(booking.at, at);
-      expect(desk.notice.value?.title, 'تم تحديد موعدك');
+      expect(appState.notice.value?.title, 'تم تحديد موعدك');
+      expect(appState.notice.value?.bookingId, booking.id);
     });
 
-    test('الإلغاء بسبب يوصل للتطبيق', () {
+    test('الإلغاء بسبب يوصل للتطبيق مع إشعار', () async {
       final desk = DeskState()..signIn(_role(StaffRole.admin));
-      final booking = appState.addRequest(serviceId: 'c1', branchId: 'salamah', period: Period.noon);
+      final booking = await appState.addRequest(serviceId: 'c1', branchId: 'salamah', period: Period.noon);
       final r = desk.all.firstWhere((x) => x.id == booking.id);
-      desk.cancel(r, 'الطبيب غير متاح');
+      await desk.cancel(r, 'الطبيب غير متاح');
       expect(booking.status, RequestStatus.cancelled);
       expect(booking.clinicCancelReason, 'الطبيب غير متاح');
+      expect(appState.notice.value?.title, 'تم إلغاء طلبك');
     });
 
     test('الأوقات: كل نص ساعة داخل الفترة، والأيام بدون الجمعة', () {
@@ -142,6 +150,75 @@ void main() {
       expect(slotsFor(day, Period.evening).last.hour, 20);
       expect(openDays().any((d) => d.weekday == DateTime.friday), isFalse);
       expect(openDays().length, 14);
+    });
+  });
+
+  group('قواعد السيرفر التجريبي', () {
+    tearDown(() => MockBackend.offline.value = false);
+
+    test('الاتصال مقطوع: العملية تفشل وما يتغير شيء', () async {
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
+      final r = desk.waiting.first;
+      MockBackend.offline.value = true;
+      await expectLater(
+        desk.schedule(r, at: slotsFor(openDays()[1], Period.noon).first, doctorId: desk.doctorsOf(r).first.id),
+        throwsA(isA<RepoError>().having((e) => e.kind, 'kind', RepoErrorKind.offline)),
+      );
+      expect(r.booking.status, RequestStatus.sent);
+      final before = appState.bookings.length;
+      await expectLater(appState.addRequest(serviceId: 's1', branchId: 'rawdah'), throwsA(isA<RepoError>()));
+      expect(appState.bookings.length, before);
+    });
+
+    test('نفس الطبيب بنفس الوقت: الثاني يرجع تعارض', () async {
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
+      final list = desk.waiting;
+      // طلبين يقدر يخدمهم نفس الطبيب
+      late DeskRequest a, b;
+      late String doc;
+      outer:
+      for (final x in list) {
+        for (final y in list) {
+          if (x == y) continue;
+          final common = desk.doctorsOf(x).map((d) => d.id).toSet().intersection(desk.doctorsOf(y).map((d) => d.id).toSet());
+          if (common.isNotEmpty) {
+            a = x;
+            b = y;
+            doc = common.first;
+            break outer;
+          }
+        }
+      }
+      final at = slotsFor(openDays()[2], Period.morning).firstWhere((t) => !desk.busy(doc, t));
+      await desk.schedule(a, at: at, doctorId: doc);
+      await expectLater(
+        desk.schedule(b, at: at, doctorId: doc),
+        throwsA(isA<RepoError>().having((e) => e.kind, 'kind', RepoErrorKind.conflict)),
+      );
+      expect(b.booking.status, RequestStatus.sent);
+    });
+
+    test('إجراء ما يناسب حالة الطلب يرفضه السيرفر', () async {
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
+      final r = desk.waiting.first;
+      await expectLater(desk.complete(r), throwsA(isA<RepoError>().having((e) => e.kind, 'kind', RepoErrorKind.notAllowed)));
+      await expectLater(desk.cancel(r, '   '), throwsA(isA<RepoError>()));
+    });
+
+    test('السلة: كلها أو ولا شيء', () async {
+      final before = appState.bookings.length;
+      appState.addToCart('s1');
+      appState.addToCart('zzz'); // خدمة غير موجودة
+      await expectLater(appState.sendCart(branchId: 'rawdah', period: Period.morning), throwsA(isA<RepoError>()));
+      expect(appState.bookings.length, before);
+      expect(appState.cart.length, 2);
+      appState.cart.clear();
+    });
+
+    test('المريض يشوف طلباته بس، والعيادة تشوف الكل', () {
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
+      expect(appState.bookings.every((b) => b.patientId == mePatient), isTrue);
+      expect(desk.all.length, greaterThan(appState.bookings.length));
     });
   });
 
@@ -221,6 +298,44 @@ void main() {
       expect(find.text('حدد الموعد'), findsWidgets);
       expect(find.text('التقارير'), findsNothing);
       expect(find.text('معاينة التطبيق'), findsNothing);
+      await _close(tester);
+    });
+
+    testWidgets('الاتصال مقطوع: الإرسال يطلع رسالة والطلب يبقى', (tester) async {
+      _screen(tester, const Size(1440, 900));
+      final desk = DeskState()..signIn(_role(StaffRole.admin));
+      await tester.pumpWidget(DashboardApp(desk: desk));
+      await _pump(tester);
+      final r = desk.waiting.first;
+      await tester.tap(find.text('حدد الموعد').first);
+      await _pump(tester);
+      Finder inSheet(String text) => find.descendant(of: find.byType(ScheduleSheet), matching: find.text(text));
+      final sheetList = find.descendant(of: find.byType(ScheduleSheet), matching: find.byType(Scrollable)).first;
+      final doc = desk.doctorsOf(r).first;
+      await tester.scrollUntilVisible(inSheet(doc.name), 120, scrollable: sheetList);
+      await tester.tap(inSheet(doc.name));
+      await _pump(tester, 3);
+      final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
+      final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
+      await tester.scrollUntilVisible(inSheet(fmtClock(time)), -120, scrollable: sheetList);
+      await tester.tap(inSheet(fmtClock(time)));
+      await _pump(tester, 3);
+
+      MockBackend.offline.value = true;
+      addTearDown(() => MockBackend.offline.value = false);
+      await tester.tap(inSheet('إرسال للعميل'));
+      await _pump(tester);
+      expect(find.text('ما فيه اتصال'), findsOneWidget);
+      expect(r.booking.status, RequestStatus.sent);
+      await tester.tap(find.text('حسناً'));
+      await _pump(tester);
+      // النافذة باقية، والطلب يقدر ينرسل لما يرجع الاتصال
+      expect(find.byType(ScheduleSheet), findsOneWidget);
+      MockBackend.offline.value = false;
+      await tester.tap(inSheet('إرسال للعميل'));
+      await _pump(tester);
+      expect(inSheet('انرسل الموعد للعميل'), findsOneWidget);
+      expect(r.booking.status, RequestStatus.scheduled);
       await _close(tester);
     });
 
