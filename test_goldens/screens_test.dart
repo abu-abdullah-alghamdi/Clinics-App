@@ -142,8 +142,8 @@ void main() {
 
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    // ignore: invalid_use_of_visible_for_testing_member
     MockBackend.latency = Duration.zero;
+    // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({});
     await _loadFonts();
     goldenFileComparator = _TolerantComparator((goldenFileComparator as LocalFileComparator).basedir.resolve('screens_test.dart'));

@@ -94,8 +94,8 @@ void main() {
   const phone = Size(390, 844);
 
   setUpAll(() async {
-    // ignore: invalid_use_of_visible_for_testing_member
     MockBackend.latency = Duration.zero;
+    // ignore: invalid_use_of_visible_for_testing_member
     SharedPreferences.setMockInitialValues({});
     await _loadFonts();
     goldenFileComparator = _TolerantComparator((goldenFileComparator as LocalFileComparator).basedir.resolve('dashboard_test.dart'));

@@ -250,8 +250,10 @@ void main() {
         // القائمة تبني اللي ظاهر بس: ننزل لين يطلع الطبيب
         final sheetList = find.descendant(of: find.byType(ScheduleSheet), matching: find.byType(Scrollable)).first;
         final doc = desk.doctorsOf(r).first;
-        await tester.scrollUntilVisible(inSheet(doc.name), 120, scrollable: sheetList);
-        await tester.tap(inSheet(doc.name));
+        // زر الطبيب (اسمه ممكن يطلع بعد في بطاقة الطلب والملخص)
+        final docChip = find.descendant(of: find.byType(ScheduleSheet), matching: find.byWidgetPredicate((w) => w is DoctorAvatar && w.doctor.id == doc.id));
+        await tester.scrollUntilVisible(docChip, 120, scrollable: sheetList);
+        await tester.tap(docChip);
         await _pump(tester, 3);
         final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
         final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
@@ -312,8 +314,10 @@ void main() {
       Finder inSheet(String text) => find.descendant(of: find.byType(ScheduleSheet), matching: find.text(text));
       final sheetList = find.descendant(of: find.byType(ScheduleSheet), matching: find.byType(Scrollable)).first;
       final doc = desk.doctorsOf(r).first;
-      await tester.scrollUntilVisible(inSheet(doc.name), 120, scrollable: sheetList);
-      await tester.tap(inSheet(doc.name));
+      // زر الطبيب (اسمه ممكن يطلع بعد في بطاقة الطلب والملخص)
+      final docChip = find.descendant(of: find.byType(ScheduleSheet), matching: find.byWidgetPredicate((w) => w is DoctorAvatar && w.doctor.id == doc.id));
+      await tester.scrollUntilVisible(docChip, 120, scrollable: sheetList);
+      await tester.tap(docChip);
       await _pump(tester, 3);
       final day = openDays().firstWhere((d) => slotsFor(d, r.booking.period).any((t) => t.isAfter(DateTime.now())));
       final time = slotsFor(day, r.booking.period).firstWhere((t) => t.isAfter(DateTime.now()) && !desk.busy(doc.id, t));
